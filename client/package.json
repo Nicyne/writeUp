@@ -1,6 +1,8 @@
 {
   "name": "writeup-frontend",
   "version": "0.1.0",
+  "author": "xDarkyne",
+  "repository": "https://github.com/nicyne/writeup",
   "private": true,
   "scripts": {
     "dev": "next dev",
