@@ -17,3 +17,15 @@ body,
   padding: 0;
   box-sizing: border-box;
 }
+
+.grid {
+  height: 100%;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+#input {
+  height: 100%;
+  resize: none;
+}
