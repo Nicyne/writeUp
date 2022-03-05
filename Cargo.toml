@@ -1,5 +1,6 @@
 [package]
 name = "writeUp"
+description = "Backend to the note-taking webapp 'writeUp'"
 version = "0.1.0"
 authors = ["SNiclas <dev@s-niclas.eu>"]
 edition = "2021"
@@ -7,3 +8,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+actix-rt = "2.6.0"
+actix-web = "4.0.1"
