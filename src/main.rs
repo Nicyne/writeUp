@@ -4,6 +4,7 @@
 //! an extensive webapp all about writing and sharing notes using markdown.
 //! It contains support for MongoDB and a REST-API as an interface.
 
+#![allow(non_snake_case)]
 mod web;
 
 use std::env;
