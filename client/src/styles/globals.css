@@ -17,3 +17,44 @@ body,
   padding: 0;
   box-sizing: border-box;
 }
+
+.grid {
+  height: 100%;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.app {
+  height: 100%;
+  max-width: 100%;
+  display: grid;
+  grid-template-columns: minmax(auto, 10%) auto;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+
+.list li {
+  border-radius: 0.25rem;
+  padding: 0.25rem;
+  margin: 0.25rem;
+  cursor: pointer;
+  transition: background-color 250ms;
+}
+
+.list li:hover {
+  background-color: lightgray;
+}
+
+#input {
+  height: 100%;
+  resize: none;
+}
+
+.preview ul, .preview ol {
+  list-style-position: inside;
+}
