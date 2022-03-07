@@ -115,7 +115,7 @@ async fn list_notes(auth: BearerAuth, db: Data<Mutex<Database>>) -> impl Respond
 
 fn create_jwt(uid: &str) -> Result<String, AuthError> {
     let expiration = Utc::now()
-        .checked_add_signed(chrono::Duration::seconds(60))
+        .checked_add_signed(chrono::Duration::minutes(60))
         .expect("Not a valid timestamp")
         .timestamp();
     let claims = Claims {
@@ -129,9 +129,6 @@ fn create_jwt(uid: &str) -> Result<String, AuthError> {
 }
 
 fn get_user_from_jwt(jwt: &str) -> Result<String, AuthError> {
-    match decode::<Claims>(&jwt, &DecodingKey::from_secret(JWT_SECRET),
-                           &Validation::new(Algorithm::HS512)) {
-        Ok(decoded) => Ok(decoded.claims.sub),
-        Err(_) => Err(AuthError::JWTTokenError)
-    }
+    decode::<Claims>(&jwt, &DecodingKey::from_secret(JWT_SECRET), &Validation::new(Algorithm::HS512))
+        .map(|dec|dec.claims.sub).map_err(|_|AuthError::JWTTokenError)
 }
