@@ -80,7 +80,7 @@ async fn list_notes(auth: BearerAuth, db: Data<Mutex<Database>>) -> impl Respond
         allowance: AllowanceLevel
     }
     // Verify Credentials
-    let user = get_user_from_jwt(auth.token());
+    let user = get_user_id_from_jwt(auth.token());
     match user {
         Ok(user_id) => {
             // Get list of allowed notes
@@ -97,7 +97,7 @@ async fn list_notes(auth: BearerAuth, db: Data<Mutex<Database>>) -> impl Respond
                                 allowance: allowance.level
                             }),
                             Err(DBError::NoDocumentFoundError) => return HttpResponse::InternalServerError()
-                                .json(format!("Reference to deleted note(ID:{}) still exists", allowance.note_id)), //user has allowance for a nonexisting note)
+                                .json(format!("reference to deleted note(ID:{}) still exists in user-allowances", allowance.note_id)), //user has allowance for a nonexisting note
                             Err(_) => {} //unknown
                         }
                     }
@@ -125,10 +125,10 @@ fn create_jwt(uid: &str) -> Result<String, AuthError> {
     let header = Header::new(Algorithm::HS512);
 
     encode(&header, &claims, &EncodingKey::from_secret(JWT_SECRET))
-        .map_err(|_| AuthError::JWTTokenCreationError)
+        .map_err(|_| AuthError::InternalServerError("jwt-token could not be created".to_string()))
 }
 
-fn get_user_from_jwt(jwt: &str) -> Result<String, AuthError> {
+fn get_user_id_from_jwt(jwt: &str) -> Result<String, AuthError> {
     decode::<Claims>(&jwt, &DecodingKey::from_secret(JWT_SECRET), &Validation::new(Algorithm::HS512))
         .map(|dec|dec.claims.sub).map_err(|_|AuthError::JWTTokenError)
 }

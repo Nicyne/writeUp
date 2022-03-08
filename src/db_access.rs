@@ -19,7 +19,7 @@ pub const USER: &str = "user";
 
 // Schemata
 // Sub-Structures
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub enum AllowanceLevel {
     Read,
     ReadWrite,

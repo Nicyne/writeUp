@@ -8,10 +8,12 @@ pub enum AuthError {
     WrongCredentialsError,
     #[error("jwt token not valid")]
     JWTTokenError,
-    #[error("jwt token creation error")]
-    JWTTokenCreationError,
+    #[error("internal server error: {0}")]
+    InternalServerError(String),
     #[error("no permission")]
     NoPermissionError,
+    #[error("user was not found")]
+    InvalidUserError
 }
 
 #[derive(Serialize)]
@@ -24,8 +26,9 @@ impl AuthError {
         match self {
             AuthError::WrongCredentialsError => HttpResponse::Forbidden().json(self.get_response_struct()),
             AuthError::JWTTokenError => HttpResponse::Unauthorized().json(self.get_response_struct()),
-            AuthError::JWTTokenCreationError => HttpResponse::InternalServerError().json(self.get_response_struct()),
-            AuthError::NoPermissionError => HttpResponse::Unauthorized().json(self.get_response_struct())
+            AuthError::InternalServerError(_) => HttpResponse::InternalServerError().json(self.get_response_struct()),
+            AuthError::NoPermissionError => HttpResponse::Unauthorized().json(self.get_response_struct()),
+            AuthError::InvalidUserError => HttpResponse::Unauthorized().json(self.get_response_struct())
         }
     }
 
