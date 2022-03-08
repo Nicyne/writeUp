@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use mongodb::{Client, Database};
 use mongodb::bson::doc;
 use mongodb::options::ClientOptions;
@@ -42,8 +41,8 @@ pub struct Credential {
 }
 impl DatabaseObject for Credential {}
 impl Credential {
-    pub fn verify(&self, passwd: &Cow<'static, str>) -> bool {
-        self.passwd.eq(passwd.to_string().as_str()) //TODO DO NOT COMPARE PASSWORDS IN PLAIN TEXT
+    pub fn verify(&self, passwd: &str) -> bool {
+        self.passwd.eq(passwd) //TODO DO NOT COMPARE PASSWORDS IN PLAIN TEXT
     }
 }
 

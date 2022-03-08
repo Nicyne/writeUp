@@ -4,36 +4,19 @@ mod note;
 mod user;
 mod share;
 mod error;
+mod auth;
 
 use std::sync::Mutex;
-use serde::{Serialize, Deserialize};
+use serde::Serialize;
 use actix_web::{get, HttpResponse, Responder, web::{ServiceConfig, Data}};
-use actix_web_httpauth::extractors::{basic::BasicAuth, bearer::BearerAuth};
-use chrono::Utc;
-use jsonwebtoken::{Algorithm, decode, DecodingKey, encode, EncodingKey, Header, Validation};
+use actix_web_httpauth::extractors::bearer::BearerAuth;
 use mongodb::{bson::doc, Database};
-use crate::db_access::{AllowanceLevel, Credential, CREDENTIALS, DBError, get_dbo_by_id, Note, NOTES, User, USER};
-use crate::web::error::AuthError;
-
-// JWT-Assets
-const JWT_SECRET: &[u8] = env!("JWT_SECRET").as_bytes(); //TODO secret is static
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Claims {  // Credits to: https://blog.logrocket.com/jwt-authentication-in-rust/
-    sub: String,
-    exp: usize,
-}
-
-// Response-Objects
-#[derive(Serialize)]
-struct NoteResponse {
-    note: Note,
-    allowance: AllowanceLevel
-}
+use crate::db_access::{AllowanceLevel, DBError, get_dbo_by_id, Note, NOTES, User, USER};
+use crate::web::auth::get_user_id_from_jwt;
 
 pub fn handler_config(cfg: &mut ServiceConfig) {
     // Add all special handler
-    cfg.service(authenticate)
+    cfg.service(auth::authenticate)
         .service(list_notes);
     // Add all note-related handler
     cfg.service(note::add_note)
@@ -49,24 +32,6 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
     cfg.service(share::create_relation)
         .service(share::get_relation_code)
         .service(share::update_share);
-}
-
-#[get("/auth")]
-async fn authenticate(auth: BasicAuth, db: Data<Mutex<Database>>) -> impl Responder {
-    #[derive(Serialize)]
-    struct TokenResponse {
-        token: String
-    }
-    match get_dbo_by_id::<Credential>(CREDENTIALS, auth.user_id().to_string(), db.get_ref()).await {
-        Ok(cred) => {
-            if cred.verify(auth.password().unwrap()) {
-                create_jwt(auth.user_id()).map(|jwt| HttpResponse::Ok()
-                    .json(TokenResponse {token: jwt})).unwrap_or_else(|e| e.gen_response())
-            } else { HttpResponse::Forbidden().finish() } //wrong password
-        }
-        Err(DBError::NoDocumentFoundError) => HttpResponse::Forbidden().finish(), //No user with that username has been found
-        Err(_) => HttpResponse::InternalServerError().finish() //Unknown
-    }
 }
 
 #[get("/notes")]
@@ -111,24 +76,4 @@ async fn list_notes(auth: BearerAuth, db: Data<Mutex<Database>>) -> impl Respond
         }
         Err(e) => e.gen_response()
     }
-}
-
-fn create_jwt(uid: &str) -> Result<String, AuthError> {
-    let expiration = Utc::now()
-        .checked_add_signed(chrono::Duration::minutes(60))
-        .expect("Not a valid timestamp")
-        .timestamp();
-    let claims = Claims {
-        sub: uid.to_owned(),
-        exp: expiration as usize
-    };
-    let header = Header::new(Algorithm::HS512);
-
-    encode(&header, &claims, &EncodingKey::from_secret(JWT_SECRET))
-        .map_err(|_| AuthError::InternalServerError("jwt-token could not be created".to_string()))
-}
-
-fn get_user_id_from_jwt(jwt: &str) -> Result<String, AuthError> {
-    decode::<Claims>(&jwt, &DecodingKey::from_secret(JWT_SECRET), &Validation::new(Algorithm::HS512))
-        .map(|dec|dec.claims.sub).map_err(|_|AuthError::JWTTokenError)
 }

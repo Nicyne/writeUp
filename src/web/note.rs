@@ -1,11 +1,19 @@
 //! Endpoints regarding note-objects and their manipulation
 
 use std::sync::Mutex;
+use serde::Serialize;
 use actix_web::{get, put, delete, post, Responder, HttpRequest, HttpResponse, web::{Data, Path}};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use mongodb::Database;
 use crate::db_access::{AllowanceLevel, DBError, get_dbo_by_id, Note, NOTES, User, USER};
-use crate::web::{get_user_id_from_jwt, NoteResponse, error::AuthError};
+use crate::web::{get_user_id_from_jwt, error::AuthError};
+
+// Response-Objects
+#[derive(Serialize)]
+struct NoteResponse {
+    note: Note,
+    allowance: AllowanceLevel
+}
 
 #[post("/note")]
 pub async fn add_note(req: HttpRequest) -> impl Responder { //TODO implement
