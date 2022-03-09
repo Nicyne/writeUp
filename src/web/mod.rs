@@ -8,11 +8,10 @@ mod auth;
 
 use std::sync::Mutex;
 use serde::Serialize;
-use actix_web::{get, HttpResponse, Responder, web::{ServiceConfig, Data}};
-use actix_web_httpauth::extractors::bearer::BearerAuth;
+use actix_web::{get, HttpRequest, HttpResponse, Responder, web::{ServiceConfig, Data}};
 use mongodb::{bson::doc, Database};
 use crate::db_access::{AllowanceLevel, DBError, get_dbo_by_id, Note, NOTES, User, USER};
-use crate::web::auth::get_user_id_from_jwt;
+use crate::web::auth::get_user_id_from_request;
 
 pub fn handler_config(cfg: &mut ServiceConfig) {
     // Add all special handler
@@ -35,7 +34,7 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
 }
 
 #[get("/notes")]
-async fn list_notes(auth: BearerAuth, db: Data<Mutex<Database>>) -> impl Responder {
+async fn list_notes(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
     // Define Response-Object
     #[derive(Serialize)]
     struct ReducedNoteResponse {
@@ -45,7 +44,7 @@ async fn list_notes(auth: BearerAuth, db: Data<Mutex<Database>>) -> impl Respond
         allowance: AllowanceLevel
     }
     // Verify Credentials
-    let user = get_user_id_from_jwt(auth.token());
+    let user = get_user_id_from_request(req);
     match user {
         Ok(user_id) => {
             // Get list of allowed notes

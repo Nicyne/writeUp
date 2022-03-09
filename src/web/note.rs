@@ -3,10 +3,9 @@
 use std::sync::Mutex;
 use serde::Serialize;
 use actix_web::{get, put, delete, post, Responder, HttpRequest, HttpResponse, web::{Data, Path}};
-use actix_web_httpauth::extractors::bearer::BearerAuth;
 use mongodb::Database;
 use crate::db_access::{AllowanceLevel, DBError, get_dbo_by_id, Note, NOTES, User, USER};
-use crate::web::{get_user_id_from_jwt, error::AuthError};
+use crate::web::{get_user_id_from_request, error::AuthError};
 
 // Response-Objects
 #[derive(Serialize)]
@@ -21,10 +20,10 @@ pub async fn add_note(req: HttpRequest) -> impl Responder { //TODO implement
 }
 
 #[get("/note/{note_id}")]
-pub async fn get_note(path: Path<String>, auth: BearerAuth, db: Data<Mutex<Database>>) -> impl Responder {
+pub async fn get_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
     let note_id = path.into_inner();
     // Check if the user has clearance to view this note
-    match get_allow_level_for_note(&note_id, auth.token(), db.get_ref()).await {
+    match get_allow_level_for_note(&note_id, req, db.get_ref()).await {
         Ok(allowance) => {
             // Get note and return it
             match get_dbo_by_id::<Note>(NOTES, note_id, db.get_ref()).await {
@@ -48,9 +47,9 @@ pub async fn remove_note(req: HttpRequest, path: Path<u32>) -> impl Responder { 
     format!("Request for removal of note(ID={}) received", path.into_inner())
 }
 
-async fn get_allow_level_for_note(note_id: &str, jwt: &str, db: &Mutex<Database>) -> Result<AllowanceLevel, AuthError> {
+async fn get_allow_level_for_note(note_id: &str, req: HttpRequest, db: &Mutex<Database>) -> Result<AllowanceLevel, AuthError> {
     // Verify jwt
-    match get_user_id_from_jwt(jwt) {
+    match get_user_id_from_request(req) {
         Ok(user_id) => {
             // Extract the user
             match get_dbo_by_id::<User>(USER, user_id, db).await {

@@ -15,7 +15,6 @@ serde_json = "1.0"
 actix-rt = "2.6.0"
 actix-web = "4.0.1"
 # Authentication
-actix-web-httpauth = "0.6.0"
 jsonwebtoken = "8.0.1"
 chrono = "0.4.19"
 thiserror = "1.0"

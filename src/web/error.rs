@@ -13,7 +13,9 @@ pub enum AuthError {
     #[error("no permission")]
     NoPermissionError,
     #[error("user was not found")]
-    InvalidUserError
+    InvalidUserError,
+    #[error("token-cookie was not found")]
+    MissingAuthError
 }
 
 #[derive(Serialize)]
@@ -28,7 +30,8 @@ impl AuthError {
             AuthError::JWTTokenError => HttpResponse::Unauthorized().json(self.get_response_struct()),
             AuthError::InternalServerError(_) => HttpResponse::InternalServerError().json(self.get_response_struct()),
             AuthError::NoPermissionError => HttpResponse::Unauthorized().json(self.get_response_struct()),
-            AuthError::InvalidUserError => HttpResponse::Unauthorized().json(self.get_response_struct())
+            AuthError::InvalidUserError => HttpResponse::Unauthorized().json(self.get_response_struct()),
+            AuthError::MissingAuthError => HttpResponse::Unauthorized().json(self.get_response_struct())
         }
     }
 
