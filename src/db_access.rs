@@ -1,5 +1,5 @@
 use mongodb::{Client, Database};
-use mongodb::bson::doc;
+use mongodb::bson::{Bson, doc, Document};
 use mongodb::options::ClientOptions;
 use thiserror::Error;
 use serde::{Serialize, Deserialize};
@@ -8,6 +8,7 @@ use crate::db_access::DBError::{NoDocumentFoundError, QueryError, ServerConnecti
 use std::str::FromStr;
 use std::sync::Mutex;
 use mongodb::bson::oid::ObjectId;
+use mongodb::results::InsertOneResult;
 
 // Database-Identifier
 const DB_NAME: &str = "test";
@@ -32,7 +33,7 @@ pub struct Allowance {
 }
 
 // Database-Objects
-pub trait DatabaseObject: DeserializeOwned + Unpin + Send + Sync {}
+pub trait DatabaseObject: Serialize + DeserializeOwned + Unpin + Send + Sync {}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Credential {
@@ -101,5 +102,24 @@ pub async fn get_dbo_by_id<T: DatabaseObject>(collection: &str, id: String, db: 
         Ok(Some(doc)) => Ok(doc),
         Ok(None) => Err(NoDocumentFoundError),
         Err(_) => Err(QueryError)
+    }
+}
+
+pub async fn insert_dbo<T: DatabaseObject>(collection: &str, obj: &T, db: &Mutex<Database>) -> Result<InsertOneResult, DBError> {
+    let coll = db.lock().unwrap().collection::<T>(collection);
+    coll.insert_one(obj, None).await.map_err(|_| DBError::QueryError)
+}
+
+pub async fn update_dbo_by_id<T: DatabaseObject>(collection: &str, id: String, query: Document, db: &Mutex<Database>) -> Result<Option<Bson>, DBError> {
+    let coll = db.lock().unwrap().collection::<T>(collection);
+    let filter;
+    if collection.eq(NOTES) {
+        filter = doc! {"_id": ObjectId::from_str(id.as_str()).unwrap()};
+    } else {
+        filter = doc! {"_id": id};
+    }
+    match coll.update_one(filter, query, None).await {
+        Ok(res) => Ok(res.upserted_id),
+        Err(_) => Err(DBError::QueryError)
     }
 }

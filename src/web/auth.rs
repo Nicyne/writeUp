@@ -6,7 +6,7 @@ use actix_web::web::Data;
 use chrono::Utc;
 use jsonwebtoken::{Algorithm, decode, DecodingKey, encode, EncodingKey, Header, Validation};
 use mongodb::Database;
-use crate::db_access::{Credential, CREDENTIALS, DBError, get_dbo_by_id};
+use crate::db_access::{Credential, CREDENTIALS, DBError, get_dbo_by_id, User, USER};
 use crate::web::error::AuthError;
 use serde::{Serialize, Deserialize};
 
@@ -78,12 +78,27 @@ fn gen_jwt(uid: &str) -> Result<String, AuthError> {
         .map_err(|_| AuthError::InternalServerError("jwt-token could not be created".to_string()))
 }
 
-pub fn get_user_id_from_request(req: HttpRequest) -> Result<String, AuthError> {
+fn get_user_id_from_request(req: HttpRequest) -> Result<String, AuthError> {
     match req.cookie(JWT_TOKEN_COOKIE_NAME) {
         Some(cookie) => decode::<Claims>(cookie.value(),
                                          &DecodingKey::from_secret(JWT_SECRET),
                                          &Validation::new(Algorithm::HS512))
             .map(|dec|dec.claims.sub).map_err(|_|AuthError::JWTTokenError),
         None => Err(AuthError::MissingAuthError)
+    }
+}
+
+pub async fn get_user_from_request(req: HttpRequest, db: &Mutex<Database>) -> Result<User,AuthError> {
+    // Verify jwt
+    match get_user_id_from_request(req) {
+        Ok(user_id) => {
+            // Extract the user
+            match get_dbo_by_id::<User>(USER, user_id, db).await {
+                Ok(user) => Ok(user),
+                Err(DBError::NoDocumentFoundError) => Err(AuthError::InvalidUserError),
+                Err(_) => Err(AuthError::InternalServerError("could not retrieve user from database".to_string()))
+            }
+        }
+        Err(e) => Err(e)
     }
 }

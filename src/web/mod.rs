@@ -10,8 +10,8 @@ use std::sync::Mutex;
 use serde::Serialize;
 use actix_web::{get, HttpRequest, HttpResponse, Responder, web::{ServiceConfig, Data}};
 use mongodb::{bson::doc, Database};
-use crate::db_access::{AllowanceLevel, DBError, get_dbo_by_id, Note, NOTES, User, USER};
-use crate::web::auth::get_user_id_from_request;
+use crate::db_access::{AllowanceLevel, DBError, get_dbo_by_id, Note, NOTES};
+use crate::web::auth::get_user_from_request;
 
 pub fn handler_config(cfg: &mut ServiceConfig) {
     // Add all special handler
@@ -43,35 +43,25 @@ async fn list_notes(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Respond
         tags: Vec<String>,
         allowance: AllowanceLevel
     }
-    // Verify Credentials
-    let user = get_user_id_from_request(req);
-    match user {
-        Ok(user_id) => {
-            // Get list of allowed notes
-            match get_dbo_by_id::<User>(USER, user_id, db.get_ref()).await {
-                Ok(user) => {
-                    let mut response_vector = Vec::new();
-                    for allowance in user.allowances {
-                        // Read all allowed notes and create response-objects
-                        match get_dbo_by_id::<Note>(NOTES, allowance.note_id.clone(), db.get_ref()).await {
-                            Ok(note) => response_vector.push(ReducedNoteResponse {
-                                note_id: allowance.note_id,
-                                title: note.title,
-                                tags: note.tags,
-                                allowance: allowance.level
-                            }),
-                            Err(DBError::NoDocumentFoundError) => return HttpResponse::InternalServerError()
-                                .json(format!("reference to deleted note(ID:{}) still exists in user-allowances", allowance.note_id)), //user has allowance for a nonexisting note
-                            Err(_) => {} //unknown
-                        }
-                    }
-                    // Return the compiled list of notes
-                    HttpResponse::Ok().json(response_vector)
+    match get_user_from_request(req, db.get_ref()).await {
+        Ok(user) => {
+            let mut response_vector = Vec::new();
+            for allowance in user.allowances {
+                // Read all allowed notes and create response-objects
+                match get_dbo_by_id::<Note>(NOTES, allowance.note_id.clone(), db.get_ref()).await {
+                    Ok(note) => response_vector.push(ReducedNoteResponse {
+                        note_id: allowance.note_id,
+                        title: note.title,
+                        tags: note.tags,
+                        allowance: allowance.level
+                    }),
+                    Err(DBError::NoDocumentFoundError) => return HttpResponse::InternalServerError()
+                        .json(format!("reference to deleted note(ID:{}) still exists in user-allowances", allowance.note_id)), //user has allowance for a nonexisting note
+                    Err(_) => {} //unknown
                 }
-                Err(DBError::NoDocumentFoundError) => HttpResponse::InternalServerError()
-                    .json("User-Object is missing"), //there are credentials for a nonexisting user
-                Err(_) => HttpResponse::InternalServerError().finish() //unknown
             }
+            // Return the compiled list of notes
+            HttpResponse::Ok().json(response_vector)
         }
         Err(e) => e.gen_response()
     }
