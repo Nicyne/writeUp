@@ -1,84 +1,132 @@
 import type { NextPage } from 'next';
-import Head from 'next/head';
-import { FunctionComponent, useState } from 'react';
+import { FunctionComponent, SyntheticEvent, useState } from 'react';
 import { PrismAsync as SyntaxHighlighter } from 'react-syntax-highlighter';
-import {vscDarkPlus} from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import json from '../../posts.json';
 
 const Home: NextPage = () => {
-  const [markdown, setMarkdown] = useState<string>(json[0].body);
-  const [posts, setPosts] = useState(json);
-  const [currentPost, setCurrentPost] = useState<number>(-1);
+  const [token, setToken] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [notes, setNotes] = useState([]);
+  const [curNote, setCurNote] = useState<any>({});
 
-  const savePost = () => {
-    let index = posts.findIndex((p) => p.id == currentPost);
-    if (index == -1) return;
-    posts[index].body = markdown;
-    setPosts(posts);
+  const login = async (e: SyntheticEvent) => {
+    e.preventDefault();
+
+    const apitoken = await fetch('http://localhost:8080/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        username: username,
+        passwd: password,
+      }),
+    })
+      .then((res) => res.json())
+      .then((res) => res.token);
+
+    setToken(apitoken);
+
+    const data = await fetch('http://localhost:8080/api/notes', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${apitoken}` },
+      credentials: 'include',
+    }).then((res) => res.json());
+
+    setNotes(data);
   };
 
-  const setPost = (post: any) => {
-    setCurrentPost(post.id); 
-    setMarkdown(post.body); 
-  };
+  const loadNote = async (e: SyntheticEvent, id: number) => {
+    e.preventDefault();
 
-  const deletePost = () => {
-    let prevPost = posts.findIndex((p) => p.id == currentPost) - 1;
-    setPosts(posts.filter((p) => p.id != currentPost));
-    if (posts.length == 0) return;
-    let index = (prevPost != -1) ? prevPost : 0;
-    setPost(posts[index]);
+    const data = await fetch('http://localhost:8080/api/note/' + id, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((res) => res.json());
+
+    if (data) {
+      setCurNote(data.note);
+    }
   };
 
   return (
-    <main className='app'>
-      <Head>
-        <title>writeUp</title>
-        <meta name="description" content="writeUp" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
+    <>
+      <form onSubmit={login}>
+        <label htmlFor="username">
+          Username
+          <input
+            id="username"
+            name="username"
+            type="text"
+            onChange={({ target }) => setUsername(target.value)}
+          />
+        </label>
+        <label htmlFor="password">
+          Password
+          <input
+            id="password"
+            name="password"
+            type="password"
+            onChange={({ target }) => setPassword(target.value)}
+          />
+        </label>
+        <button type="submit">Submit</button>
+      </form>
 
-      <ul className='list'>
-        <button onClick={() => savePost() }>Save</button>
-        <button onClick={() => {
-          let npost = { id: posts.length+1, title: `Post #${posts.length}`, body: '', tags: [] };
-          setPosts([...posts, npost]);
-          setPost(npost);
-        }}>New</button>
-        <button onClick={() => deletePost()}>Delete</button>
-        {
-          posts.map((post) => (
-            <li key={post.id} onClick={() => setPost(post) }>{post.title}</li>
-          ))
-        }
+      <ul>
+        {notes.map((note: any) => (
+          <li key={note.note_id} onClick={(e) => loadNote(e, note.note_id)}>
+            {note.title}
+          </li>
+        ))}
       </ul>
 
       <div className="grid">
-        <textarea name="input" spellCheck="false" id="input" value={markdown} onChange={({target}) => setMarkdown(target.value)} />
-        <div className='preview'>
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={
-            { code({node, inline, className, children, ...props}) {
-            const match = /language-(\w+)/.exec(className || '');
-            return !inline && match ? (
-              <Codeblock value={String(children).replace(/\n$/, '')} language={match[1]} />
-            ) : (
-              <code className={className} {...props}>
-                {children}
-              </code>
-            );
-          } }
-          }>
-            {markdown ?? ''}
+        <textarea
+          name="input"
+          spellCheck="false"
+          id="input"
+          value={curNote.content}
+          onChange={({ target }) => {
+            setCurNote({
+              ...curNote,
+              content: target.value,
+            });
+          }}
+        />
+        <div className="preview">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              code({ node, inline, className, children, ...props }) {
+                const match = /language-(\w+)/.exec(className || '');
+                return !inline && match ? (
+                  <Codeblock
+                    value={String(children).replace(/\n$/, '')}
+                    language={match[1]}
+                  />
+                ) : (
+                  <code className={className} {...props}>
+                    {children}
+                  </code>
+                );
+              },
+            }}
+          >
+            {curNote.content ?? ''}
           </ReactMarkdown>
         </div>
       </div>
-    </main>
+    </>
   );
 };
 
-const Codeblock: FunctionComponent<{value: string, language: string}> = ({value, language}) => {
+const Codeblock: FunctionComponent<{ value: string; language: string }> = ({
+  value,
+  language,
+}) => {
   return (
     <SyntaxHighlighter language={language} style={vscDarkPlus}>
       {value}
