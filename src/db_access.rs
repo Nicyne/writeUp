@@ -8,7 +8,7 @@ use crate::db_access::DBError::{NoDocumentFoundError, QueryError, ServerConnecti
 use std::str::FromStr;
 use std::sync::Mutex;
 use mongodb::bson::oid::ObjectId;
-use mongodb::results::InsertOneResult;
+use mongodb::results::{DeleteResult, InsertOneResult};
 
 // Database-Identifier
 const DB_NAME: &str = "test";
@@ -121,5 +121,21 @@ pub async fn update_dbo_by_id<T: DatabaseObject>(collection: &str, id: String, q
     match coll.update_one(filter, query, None).await {
         Ok(res) => Ok(res.upserted_id),
         Err(_) => Err(DBError::QueryError)
+    }
+}
+
+pub async fn del_dbo_by_id<T: DatabaseObject>(collection: &str, id: String, db: &Mutex<Database>) -> Result<DeleteResult,DBError> {
+    // Prepare the query
+    let coll = db.lock().unwrap().collection::<T>(collection);
+    let filter;
+    if collection.eq(NOTES) {
+        filter = doc! {"_id": ObjectId::from_str(id.as_str()).unwrap()};
+    } else {
+        filter = doc! {"_id": id};
+    }
+    // Match the result
+    match coll.delete_one(filter, None).await {
+        Ok(res) => Ok(res),
+        Err(_) => Err(QueryError)
     }
 }

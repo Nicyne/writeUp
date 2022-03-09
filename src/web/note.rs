@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use actix_web::{get, put, delete, post, Responder, HttpRequest, HttpResponse, web::{Data, Path}, web};
 use mongodb::bson::doc;
 use mongodb::Database;
-use crate::db_access::{AllowanceLevel, DBError, get_dbo_by_id, insert_dbo, Note, NOTES, update_dbo_by_id, User, USER};
+use crate::db_access::{AllowanceLevel, DBError, del_dbo_by_id, get_dbo_by_id, insert_dbo, Note, NOTES, update_dbo_by_id, User, USER};
 use crate::web::error::AuthError;
 use crate::web::auth::get_user_from_request;
 use crate::web::note::json_objects::{NoteRequest, NoteResponse};
@@ -49,7 +49,7 @@ pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, db: Da
                     match update_dbo_by_id::<User>(USER, user._id,
                                                    doc! {"$push": {"allowances": {"note_id": &note_id, "level": "Owner"}}},
                                                    db.get_ref()).await {
-                        Ok(res) => HttpResponse::Ok() // Return the created note
+                        Ok(_res) => HttpResponse::Ok() // Return the created note
                             .json(NoteResponse { note_id, note, allowance: AllowanceLevel::Owner}), //TODO? Re-fetch object instead of putting together
                         Err(_) => AuthError::InternalServerError("note could not be linked to user-account".to_string()).gen_response() //unknown
                     }
@@ -85,8 +85,27 @@ pub async fn update_note(req: HttpRequest, path: Path<u32>) -> impl Responder { 
 }
 
 #[delete("/note/{note_id}")]
-pub async fn remove_note(req: HttpRequest, path: Path<u32>) -> impl Responder { //TODO implement
-    format!("Request for removal of note(ID={}) received", path.into_inner())
+pub async fn remove_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
+    let note_id = path.into_inner();
+    // Check if the user has the clearance to deleting the note
+    match get_allow_level_for_note(&note_id, req, &db).await {
+        Ok(AllowanceLevel::Owner) =>  {
+            // Remove all allowances
+            let users = db.lock().unwrap().collection::<User>(USER);
+            match users.update_many(doc! {}, doc! {"$pull": {"allowances": {"note_id": &note_id}}}, None).await { //TODO Dont queue through all notes
+                Ok(_res) => {
+                    // Remove note
+                    match del_dbo_by_id::<Note>(NOTES, note_id, &db).await {
+                        Ok(_res) => HttpResponse::Ok().json("Note-deletion successful"),
+                        Err(_) => AuthError::InternalServerError("failed to delete note-obj".to_string()).gen_response()
+                    }
+                }
+                Err(_) => AuthError::InternalServerError("error during reference removal".to_string()).gen_response()
+            }
+        }
+        Ok(_) =>  AuthError::NoPermissionError.gen_response(),
+        Err(e) => e.gen_response()
+    }
 }
 
 async fn get_allow_level_for_note(note_id: &str, req: HttpRequest, db: &Mutex<Database>) -> Result<AllowanceLevel, AuthError> {
