@@ -1,16 +1,33 @@
 //! Endpoints regarding user-objects and their manipulation
 
-use actix_web::{get, put, delete, post, Responder, HttpRequest};
-use actix_web::web::Path;
+use std::sync::Mutex;
+use actix_web::{get, put, delete, post, Responder, HttpRequest, HttpResponse};
+use actix_web::web::{Data, Path};
+use mongodb::Database;
+use crate::web::auth::get_user_from_request;
+use crate::web::user::json_objects::NoteRequest;
+
+// Response-/Request-Objects
+mod json_objects {
+    use serde::Serialize;
+
+    #[derive(Serialize)]
+    pub struct NoteRequest {
+        pub username: String
+    }
+}
 
 #[post("/user")]
 pub async fn add_user(req: HttpRequest) -> impl Responder { //TODO implement
     format!("Request for adding a new user received")
 }
 
-#[get("/user/{user_id}")]
-pub async fn get_user(req: HttpRequest, path: Path<String>) -> impl Responder { //TODO implement
-    format!("Request for user(USERNAME='{}') received", path.into_inner())
+#[get("/user")]
+pub async fn get_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
+    match get_user_from_request(req, &db).await {
+        Ok(user) => HttpResponse::Ok().json(NoteRequest { username: user._id }),
+        Err(e) => e.gen_response()
+    }
 }
 
 #[put("/user/{user_id}")]
