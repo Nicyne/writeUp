@@ -11,13 +11,14 @@ use serde::Serialize;
 use actix_web::{get, HttpRequest, HttpResponse, Responder, web::{ServiceConfig, Data}};
 use mongodb::{bson::doc, Database};
 use crate::db_access::{AllowanceLevel, DBError, get_dbo_by_id, Note, NOTES};
-use crate::web::auth::get_user_from_request;
+use crate::web::auth::{get_user_from_request, logout};
 use crate::web::error::AuthError;
 
 pub fn handler_config(cfg: &mut ServiceConfig) {
     // Add all special handler
     cfg.service(auth::authenticate)
-        .service(list_notes);
+        .service(list_notes)
+        .service(logout);
     // Add all note-related handler
     cfg.service(note::add_note)
         .service(note::get_note)

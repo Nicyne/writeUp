@@ -1,5 +1,5 @@
 use std::sync::Mutex;
-use actix_web::{post, HttpResponse, Responder, web, HttpRequest};
+use actix_web::{post, delete, HttpResponse, Responder, web, HttpRequest};
 use actix_web::cookie::{CookieBuilder, SameSite};
 use actix_web::cookie::time::Duration;
 use actix_web::web::Data;
@@ -60,6 +60,18 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
         }
         Err(DBError::NoDocumentFoundError) => AuthError::InvalidUserError.gen_response(), //No user with that username has been found
         Err(_) => AuthError::InternalServerError("failed to access credentials".to_string()).gen_response() //Unknown
+    }
+}
+
+#[delete("/auth")]
+pub async fn logout(db: Data<Mutex<Database>>, req: HttpRequest) -> impl Responder {
+    match get_user_id_from_request(req) {
+        Ok(_) => {
+            let mut resp = HttpResponse::Ok().finish();
+            resp.add_removal_cookie(&CookieBuilder::new(JWT_TOKEN_COOKIE_NAME, "-1").http_only(true).finish());
+            resp
+        }
+        Err(e) => e.gen_response()
     }
 }
 
