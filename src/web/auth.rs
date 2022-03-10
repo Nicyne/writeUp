@@ -78,7 +78,7 @@ fn gen_jwt(uid: &str) -> Result<String, AuthError> {
         .map_err(|_| AuthError::InternalServerError("jwt-token could not be created".to_string()))
 }
 
-fn get_user_id_from_request(req: HttpRequest) -> Result<String, AuthError> {
+pub fn get_user_id_from_request(req: HttpRequest) -> Result<String, AuthError> { //TODO Make private
     match req.cookie(JWT_TOKEN_COOKIE_NAME) {
         Some(cookie) => decode::<Claims>(cookie.value(),
                                          &DecodingKey::from_secret(JWT_SECRET),

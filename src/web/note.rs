@@ -6,7 +6,7 @@ use mongodb::bson::doc;
 use mongodb::Database;
 use crate::db_access::{AllowanceLevel, DBError, del_dbo_by_id, get_dbo_by_id, insert_dbo, Note, NOTES, update_dbo_by_id, User, USER};
 use crate::web::error::AuthError;
-use crate::web::auth::get_user_from_request;
+use crate::web::auth::{get_user_from_request, get_user_id_from_request};
 use crate::web::note::json_objects::{NoteRequest, NoteResponse};
 
 // Response-/Request-Objects
@@ -80,8 +80,29 @@ pub async fn get_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Datab
 }
 
 #[put("/note/{note_id}")]
-pub async fn update_note(req: HttpRequest, path: Path<u32>) -> impl Responder { //TODO implement
-    format!("Request for update of note(ID={}) received", path.into_inner())
+pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Json<NoteRequest>, db: Data<Mutex<Database>>) -> impl Responder {
+    let note_req = note_req.into_inner();
+    let note_id = path.into_inner();
+    // Check if the user has the clearance to update the note
+    match get_allow_level_for_note(&note_id, req.clone(), &db).await {
+        Ok(AllowanceLevel::Read) => AuthError::NoPermissionError.gen_response(), //Read-Only Access
+        Ok(allowance) => {
+            // Update all fields of the note
+            match update_dbo_by_id::<Note>(NOTES, note_id.clone(), doc! {"$set": { //TODO? Only update changed fields
+                "title": &note_req.title,
+                "content": &note_req.content,
+                "tags": &note_req.tags
+            }}, &db).await {
+                Ok(_res) => HttpResponse::Ok().json(NoteResponse { //TODO? Re-fetch object instead of putting together
+                    note_id,
+                    note: note_req.to_note(&get_user_id_from_request(req).unwrap()),
+                    allowance
+                }),
+                Err(_) => AuthError::InternalServerError("update of note failed".to_string()).gen_response() //unknown
+            }
+        }
+        Err(e) => e.gen_response()
+    }
 }
 
 #[delete("/note/{note_id}")]
