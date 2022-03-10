@@ -26,10 +26,10 @@ struct ErrorResponse {
 impl AuthError {
     pub fn gen_response(&self) -> HttpResponse {
         match self {
-            AuthError::WrongCredentialsError => HttpResponse::Forbidden().json(self.get_response_struct()),
+            AuthError::WrongCredentialsError => HttpResponse::Unauthorized().json(self.get_response_struct()),
             AuthError::JWTTokenError => HttpResponse::Unauthorized().json(self.get_response_struct()),
             AuthError::InternalServerError(_) => HttpResponse::InternalServerError().json(self.get_response_struct()),
-            AuthError::NoPermissionError => HttpResponse::Unauthorized().json(self.get_response_struct()),
+            AuthError::NoPermissionError => HttpResponse::Forbidden().json(self.get_response_struct()),
             AuthError::InvalidUserError => HttpResponse::Unauthorized().json(self.get_response_struct()),
             AuthError::MissingAuthError => HttpResponse::Unauthorized().json(self.get_response_struct())
         }

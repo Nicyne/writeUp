@@ -49,15 +49,15 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
                         let token_cookie = CookieBuilder::new(JWT_TOKEN_COOKIE_NAME, jwt)
                             .max_age(Duration::minutes(JWT_DURATION_MINUTES)).http_only(true).finish(); //TODO Secure Cookie
                         let mut response = HttpResponse::Ok().json(json_objects::TokenResponse {success: true});
-                        if response.add_cookie(&token_cookie).is_err() {return HttpResponse::InternalServerError().finish()} //Cookie couldn't be parsed
+                        if response.add_cookie(&token_cookie).is_err() {return AuthError::InternalServerError("failed to set cookie".to_string()).gen_response()} //Cookie couldn't be parsed
                         response
                     }
                     Err(e) => e.gen_response()
                 }
-            } else { HttpResponse::Unauthorized().finish() } //wrong password
+            } else { AuthError::WrongCredentialsError.gen_response() } //wrong password
         }
-        Err(DBError::NoDocumentFoundError) => HttpResponse::Unauthorized().finish(), //No user with that username has been found
-        Err(_) => HttpResponse::InternalServerError().finish() //Unknown
+        Err(DBError::NoDocumentFoundError) => AuthError::InvalidUserError.gen_response(), //No user with that username has been found
+        Err(_) => AuthError::InternalServerError("failed to access credentials".to_string()).gen_response() //Unknown
     }
 }
 

@@ -70,9 +70,9 @@ pub async fn get_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Datab
             // Get note and return it
             match get_dbo_by_id::<Note>(NOTES, note_id.clone(), db.get_ref()).await {
                 Ok(note) => HttpResponse::Ok().json(NoteResponse { note_id, note, allowance}),
-                Err(DBError::NoDocumentFoundError) => HttpResponse::InternalServerError()
-                    .json("reference to deleted note still exists in user-allowances"), //user has allowance for a nonexisting note
-                Err(_) => HttpResponse::InternalServerError().finish() //unknown
+                Err(DBError::NoDocumentFoundError) => AuthError::InternalServerError(
+                    "reference to deleted note still exists in user-allowances".to_string()).gen_response(), //user has allowance for a nonexisting note
+                Err(_) => AuthError::InternalServerError("failed to retrieve note".to_string()).gen_response() //unknown
             }
         }
         Err(e) => e.gen_response()

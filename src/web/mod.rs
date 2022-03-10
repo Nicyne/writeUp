@@ -12,6 +12,7 @@ use actix_web::{get, HttpRequest, HttpResponse, Responder, web::{ServiceConfig, 
 use mongodb::{bson::doc, Database};
 use crate::db_access::{AllowanceLevel, DBError, get_dbo_by_id, Note, NOTES};
 use crate::web::auth::get_user_from_request;
+use crate::web::error::AuthError;
 
 pub fn handler_config(cfg: &mut ServiceConfig) {
     // Add all special handler
@@ -55,8 +56,9 @@ async fn list_notes(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Respond
                         tags: note.tags,
                         allowance: allowance.level
                     }),
-                    Err(DBError::NoDocumentFoundError) => return HttpResponse::InternalServerError()
-                        .json(format!("reference to deleted note(ID:{}) still exists in user-allowances", allowance.note_id)), //user has allowance for a nonexisting note
+                    Err(DBError::NoDocumentFoundError) => return AuthError::InternalServerError(
+                        format!("reference to deleted note(ID:{}) still exists in user-allowances",
+                                allowance.note_id)).gen_response(), //user has allowance for a nonexisting note
                     Err(_) => {} //unknown
                 }
             }
