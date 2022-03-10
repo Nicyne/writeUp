@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 use actix_web::{post, HttpResponse, Responder, web, HttpRequest};
-use actix_web::cookie::CookieBuilder;
+use actix_web::cookie::{CookieBuilder, SameSite};
 use actix_web::cookie::time::Duration;
 use actix_web::web::Data;
 use chrono::Utc;
@@ -47,7 +47,9 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
                     Ok(jwt) => {
                         // Create a cookie with the JWT
                         let token_cookie = CookieBuilder::new(JWT_TOKEN_COOKIE_NAME, jwt)
-                            .max_age(Duration::minutes(JWT_DURATION_MINUTES)).http_only(true).finish(); //TODO Secure Cookie
+                            .same_site(SameSite::Strict)
+                            .max_age(Duration::minutes(JWT_DURATION_MINUTES))
+                            .http_only(true).finish(); //TODO Secure Cookie
                         let mut response = HttpResponse::Ok().json(json_objects::TokenResponse {success: true});
                         if response.add_cookie(&token_cookie).is_err() {return AuthError::InternalServerError("failed to set cookie".to_string()).gen_response()} //Cookie couldn't be parsed
                         response
