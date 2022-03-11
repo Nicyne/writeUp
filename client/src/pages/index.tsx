@@ -1,5 +1,5 @@
 import type { NextPage } from 'next';
-import { FunctionComponent, SyntheticEvent, useState } from 'react';
+import { FunctionComponent, SyntheticEvent, useEffect, useState } from 'react';
 import { PrismAsync as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import ReactMarkdown from 'react-markdown';
@@ -11,11 +11,25 @@ const Home: NextPage = () => {
   const [password, setPassword] = useState('');
   const [notes, setNotes] = useState([]);
   const [curNote, setCurNote] = useState<any>({});
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    try {
+      fetch('http://localhost:8080/api/user', {
+        method: 'GET',
+        credentials: 'include',
+      })
+        .then((res) => res.json())
+        .then((res) => {
+          setUser(res);
+        });
+    } catch (error: any) {}
+  }, []);
 
   const login = async (e: SyntheticEvent) => {
     e.preventDefault();
 
-    const apitoken = await fetch('http://localhost:8080/api/auth', {
+    const res = await fetch('http://localhost:8080/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -23,15 +37,19 @@ const Home: NextPage = () => {
         username: username,
         passwd: password,
       }),
-    })
-      .then((res) => res.json())
-      .then((res) => res.token);
+    }).then((res) => res.json());
 
-    setToken(apitoken);
+    if (!res.success) return;
+
+    const user = await fetch('http://localhost:8080/api/user', {
+      method: 'GET',
+      credentials: 'include',
+    }).then((res) => res.json());
+
+    setUser(user);
 
     const data = await fetch('http://localhost:8080/api/notes', {
       method: 'GET',
-      headers: { Authorization: `Bearer ${apitoken}` },
       credentials: 'include',
     }).then((res) => res.json());
 
@@ -43,7 +61,7 @@ const Home: NextPage = () => {
 
     const data = await fetch('http://localhost:8080/api/note/' + id, {
       method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
     }).then((res) => res.json());
 
     if (data) {
@@ -53,27 +71,41 @@ const Home: NextPage = () => {
 
   return (
     <>
-      <form onSubmit={login}>
-        <label htmlFor="username">
-          Username
-          <input
-            id="username"
-            name="username"
-            type="text"
-            onChange={({ target }) => setUsername(target.value)}
-          />
-        </label>
-        <label htmlFor="password">
-          Password
-          <input
-            id="password"
-            name="password"
-            type="password"
-            onChange={({ target }) => setPassword(target.value)}
-          />
-        </label>
-        <button type="submit">Submit</button>
-      </form>
+      {!user ? (
+        <form onSubmit={login}>
+          <label htmlFor="username">
+            Username
+            <input
+              id="username"
+              name="username"
+              type="text"
+              onChange={({ target }) => setUsername(target.value)}
+            />
+          </label>
+          <label htmlFor="password">
+            Password
+            <input
+              id="password"
+              name="password"
+              type="password"
+              onChange={({ target }) => setPassword(target.value)}
+            />
+          </label>
+          <button type="submit">Submit</button>
+        </form>
+      ) : (
+        <button
+          onClick={async () => {
+            await fetch('http://localhost:8080/api/auth', {
+              method: 'DELETE',
+              credentials: 'include',
+            });
+            setUser(null);
+          }}
+        >
+          Logout
+        </button>
+      )}
 
       <ul>
         {notes.map((note: any) => (
