@@ -57,7 +57,7 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
         .service(share::update_share);
 }
 
-/// Compiles a list of all notes the current user has access to.
+/// ENDPOINT: Compiles a list of all notes the current user has access to.
 ///
 /// Returns one of the following HttpResponses:
 /// * `200` [Body: JSON] - List could be compiled
@@ -73,7 +73,7 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
 ///
 /// ```
 /// GET-Request at `{api-url}/notes` with a cookie containing a valid JWT
-/// => 200:
+/// => 200
 ///     [
 ///         {
 ///             "note_id": "7254fa970b62u3ag62dr4d3l",
@@ -94,9 +94,10 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
 ///             "allowance": "Read"
 ///         }
 ///     ]
-///
+/// ```
+/// ```
 /// GET-Request at `{api-url}/notes` without a cookie containing a JWT
-/// => 401:
+/// => 401
 ///     "token-cookie was not found"
 /// ```
 #[get("/notes")]
