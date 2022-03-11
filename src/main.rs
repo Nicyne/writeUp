@@ -24,9 +24,13 @@ async fn main() -> std::io::Result<()> {
     let db_passwd = env::var("DB_PASSWD").expect("Env-Variable 'DB_PASSWD' needs to be set");
 
     // Connect to the Database
-    let db = connect_to_database((db_uri, db_port), (db_user, db_passwd)).await.unwrap();
+    let db = connect_to_database((db_uri, db_port), (db_user, db_passwd)).await;
+    if db.is_err() {
+        println!("Failed to establish a connection to the Database. Shutting down");
+        return Ok(());
+    }
     // Prepare the connection for use by the web-server
-    let data = Data::new(Mutex::new(db));
+    let data = Data::new(Mutex::new(db.unwrap()));
 
     // Start the web-server
     HttpServer::new(move ||
