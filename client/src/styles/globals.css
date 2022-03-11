@@ -1,60 +1,73 @@
 html,
 body {
-  padding: 0;
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+    padding: 0;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
 }
 
 html,
 body,
 #__next {
-  height: 100%;
+    height: 100%;
 }
 
 * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 .grid {
-  height: 100%;
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+    height: 100%;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
 }
 
 .app {
-  height: 100%;
-  max-width: 100%;
-  display: grid;
-  grid-template-columns: minmax(auto, 10%) auto;
+    height: 100%;
+    max-width: 100%;
+    display: grid;
+    grid-template-columns: minmax(auto, 10%) auto;
 }
 
 .list {
-  display: flex;
-  flex-direction: column;
-  list-style: none;
+    display: flex;
+    flex-direction: column;
+    list-style: none;
 }
 
 .list li {
-  border-radius: 0.25rem;
-  padding: 0.25rem;
-  margin: 0.25rem;
-  cursor: pointer;
-  transition: background-color 250ms;
+    border-radius: 0.25rem;
+    padding: 0.25rem;
+    margin: 0.25rem;
+    cursor: pointer;
+    transition: background-color 250ms;
 }
 
 .list li:hover {
-  background-color: lightgray;
+    background-color: lightgray;
 }
 
 #input {
-  height: 100%;
-  resize: none;
+    height: 100%;
+    resize: none;
 }
 
 .preview ul, .preview ol {
-  list-style-position: inside;
+    list-style-position: inside;
+}
+
+.log {
+    height: 100%;
+    width: 100%;
+    display: grid;
+    place-items: center;
+    grid-template-columns: 1fr 1fr;
+}
+
+.log form {
+    display: flex;
+    flex-direction: column;
 }
