@@ -72,32 +72,32 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
 /// # Examples
 ///
 /// ```
-/// GET-Request at '{api-url}/notes' with a cookie containing a valid JWT =>
-/// `200`:
-/// [
-///     {
-///         "note_id": "7254fa970b62u3ag62dr4d3l",
-///         "title": "Test-Note",
-///         "tags": [
-///             "Test",
-///             "Note"
-///         ],
-///         "allowance": "Owner"
-///     },
-///     {
-///         "note_id": "7354fa9uu782u3ag62t54d3l",
-///         "title": "Note, but this time different",
-///         "tags": [
-///             "Note",
-///             "Different"
-///         ],
-///         "allowance": "Read"
-///     }
-/// ]
+/// GET-Request at `{api-url}/notes` with a cookie containing a valid JWT
+/// => 200:
+///     [
+///         {
+///             "note_id": "7254fa970b62u3ag62dr4d3l",
+///             "title": "Test-Note",
+///             "tags": [
+///                 "Test",
+///                 "Note"
+///             ],
+///             "allowance": "Owner"
+///         },
+///         {
+///             "note_id": "7354fa9uu782u3ag62t54d3l",
+///             "title": "Note, but this time different",
+///             "tags": [
+///                 "Note",
+///                 "Different"
+///             ],
+///             "allowance": "Read"
+///         }
+///     ]
 ///
-/// GET-Request at '{api-url}/notes' without a cookie containing a JWT =>
-/// '401':
-/// "token-cookie was not found"
+/// GET-Request at `{api-url}/notes` without a cookie containing a JWT
+/// => 401:
+///     "token-cookie was not found"
 /// ```
 #[get("/notes")]
 async fn list_notes(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
