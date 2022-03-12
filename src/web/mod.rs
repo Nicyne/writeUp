@@ -1,4 +1,18 @@
 //! REST-Endpoints and their logic
+//!
+//! # Endpoints:
+//!
+//! * `POST /auth`          - Login [[`authenticate`](auth::authenticate)]
+//! * `DELETE /auth`        - Logout [[`logout`](auth::logout)]
+//!
+//! * `GET /notes`          - List of all available notes [[`list_notes`]]
+//!
+//! * `POST /note`          - Add a note [[`add_note`](note::add_note)]
+//! * `GET /note/{id}`      - Get a note [[`get_note`](note::get_note)]
+//! * `PUT /note/{id}`      - Update a note [[`update_note`](note::update_note)]
+//! * `DELETE /note/{id}`   - Remove a note [[`remove_note`](note::remove_note)]
+//!
+//! * `GET /user`           - Get current user [[`get_user`](user::get_user)]
 
 mod note;
 mod user;
