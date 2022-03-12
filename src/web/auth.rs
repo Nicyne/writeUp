@@ -11,6 +11,7 @@ use mongodb::Database;
 use crate::db_access::{Credential, CREDENTIALS, DBError, get_dbo_by_id, User, USER};
 use crate::web::error::AuthError;
 use serde::{Serialize, Deserialize};
+use crate::web::auth::json_objects::TokenResponse;
 
 // JWT-Assets
 /// Secret-phrase used to en- and decode JWTs
@@ -128,6 +129,9 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
 /// ```text
 /// DELETE-Request at `{api-url}/auth` with a cookie containing a valid JWT
 /// => 200 [cookie is removed]
+///     {
+///         "success": true
+///     }
 /// ```
 /// ```text
 /// DELETE-Request at `{api-url}/auth` without a cookie containing a JWT
@@ -144,7 +148,7 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
 pub async fn logout(req: HttpRequest) -> impl Responder {
     match get_user_id_from_request(req) {
         Ok(_) => {
-            let mut resp = HttpResponse::Ok().finish();
+            let mut resp = HttpResponse::Ok().json(TokenResponse { success: true });
             resp.add_removal_cookie(&CookieBuilder::new(JWT_TOKEN_COOKIE_NAME, "-1").same_site(SameSite::Strict).http_only(true).finish());
             resp
         }
