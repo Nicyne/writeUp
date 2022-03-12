@@ -2,17 +2,23 @@
 //!
 //! # Endpoints:
 //!
-//! * `POST /auth`          - Login [[`authenticate`](auth::authenticate)]
-//! * `DELETE /auth`        - Logout [[`logout`](auth::logout)]
+//! + System:
+//!     * `GET /system`         - Get System Information [[`return_system_status`]]
 //!
-//! * `GET /notes`          - List of all available notes [[`list_notes`]]
+//! + Authorisation:
+//!     * `POST /auth`          - Login [[`authenticate`](auth::authenticate)]
+//!     * `DELETE /auth`        - Logout [[`logout`](auth::logout)]
 //!
-//! * `POST /note`          - Add a note [[`add_note`](note::add_note)]
-//! * `GET /note/{id}`      - Get a note [[`get_note`](note::get_note)]
-//! * `PUT /note/{id}`      - Update a note [[`update_note`](note::update_note)]
-//! * `DELETE /note/{id}`   - Remove a note [[`remove_note`](note::remove_note)]
+//! + Notes:
+//!     * `GET /notes`          - List of all available notes [[`list_notes`]]
 //!
-//! * `GET /user`           - Get current user [[`get_user`](user::get_user)]
+//!     * `POST /note`          - Add a note [[`add_note`](note::add_note)]
+//!     * `GET /note/{id}`      - Get a note [[`get_note`](note::get_note)]
+//!     * `PUT /note/{id}`      - Update a note [[`update_note`](note::update_note)]
+//!     * `DELETE /note/{id}`   - Remove a note [[`remove_note`](note::remove_note)]
+//!
+//! + User:
+//!     * `GET /user`           - Get current user [[`get_user`](user::get_user)]
 
 mod note;
 mod user;
@@ -20,12 +26,13 @@ mod share;
 mod error;
 mod auth;
 
+use std::env;
 use std::sync::Mutex;
 use serde::Serialize;
 use actix_web::{get, HttpRequest, HttpResponse, Responder, web::{ServiceConfig, Data}};
 use mongodb::{bson::doc, Database};
 use crate::db_access::{AllowanceLevel, DBError, get_dbo_by_id, Note, NOTES};
-use crate::web::auth::{get_user_from_request, logout};
+use crate::web::auth::get_user_from_request;
 use crate::web::error::AuthError;
 
 /// Configures the web-server to add all endpoints
@@ -52,9 +59,10 @@ use crate::web::error::AuthError;
 /// ```
 pub fn handler_config(cfg: &mut ServiceConfig) {
     // Add all special handler
-    cfg.service(auth::authenticate)
+    cfg.service(return_system_status)
+        .service(auth::authenticate)
         .service(list_notes)
-        .service(logout);
+        .service(auth::logout);
     // Add all note-related handler
     cfg.service(note::add_note)
         .service(note::get_note)
@@ -69,6 +77,38 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
     cfg.service(share::create_relation)
         .service(share::get_relation_code)
         .service(share::update_share);
+}
+
+/// ENDPOINT: Returns information on the system currently running.
+///
+/// Returns one of the following HttpResponses:
+/// * `200` [Body: JSON] - System-information could be compiled
+///
+/// # Examples
+///
+/// ```text
+/// GET-Request at `{api-url}/system`
+/// => 200
+///     {
+///         "application": "writeUp",
+///         "version": "0.1.0"
+///     }
+/// ```
+#[get("/system")]
+async fn return_system_status() -> impl Responder { //TODO flesh out
+    // Define Response-Object
+    /// Response-body containing information on the system currently running
+    #[derive(Serialize)]
+    struct SystemResponse {
+        /// The name of the application currently running
+        application: String,
+        /// The version of the application currently running
+        version: String
+    }
+    return HttpResponse::Ok().json(SystemResponse {
+        application: env::var("CARGO_PKG_NAME").unwrap(),
+        version: env::var("CARGO_PKG_VERSION").unwrap()
+    })
 }
 
 /// ENDPOINT: Compiles a list of all notes the current user has access to.
@@ -117,11 +157,16 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
 #[get("/notes")]
 async fn list_notes(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
     // Define Response-Object
+    /// Response-body containing a limited amount of information on a note
     #[derive(Serialize)]
     struct ReducedNoteResponse {
+        /// The note's identifier
         note_id: String,
+        /// The note's title
         title: String,
+        /// The tags associated with the note
         tags: Vec<String>,
+        /// The level of access the current user has regarding this note
         allowance: AllowanceLevel
     }
     match get_user_from_request(req, db.get_ref()).await {
