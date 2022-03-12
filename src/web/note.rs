@@ -52,7 +52,7 @@ mod json_objects {
 ///
 /// Returns one of the following HttpResponses:
 /// * `200` [Body: JSON] - Note was inserted successfully
-/// * `401` - Wrong Credentials
+/// * `401` - Missing or invalid JWT
 /// * `500` - Something went wrong internally (debug)
 ///
 /// # Arguments
@@ -126,7 +126,7 @@ pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, db: Da
 ///
 /// Returns one of the following HttpResponses:
 /// * `200` - Note can be returned
-/// * `401` - Wrong Credentials
+/// * `401` - Missing or invalid JWT
 /// * `403` - Insufficient access-level (no read-access)
 /// * `500` - Something went wrong internally (debug)
 ///
@@ -187,7 +187,7 @@ pub async fn get_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Datab
 ///
 /// Returns one of the following HttpResponses:
 /// * `200` [Body: JSON] - Note was updated successfully
-/// * `401` - Wrong Credentials
+/// * `401` - Missing or invalid JWT
 /// * `403` - Insufficient access-level (no write-access)
 /// * `500` - Something went wrong internally (debug)
 ///
@@ -273,7 +273,7 @@ pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Js
 ///
 /// Returns one of the following HttpResponses:
 /// * `200` - Note was removed successfully
-/// * `401` - Wrong Credentials
+/// * `401` - Missing or invalid JWT
 /// * `403` - Insufficient access-level (not Owner)
 /// * `500` - Something went wrong internally (debug)
 ///
