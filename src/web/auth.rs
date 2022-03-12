@@ -65,7 +65,7 @@ mod json_objects {
 ///
 /// # Examples
 ///
-/// ```
+/// ```text
 /// POST-Request at `{api-url}/auth`
 ///     {
 ///         "username": "testUser",
@@ -76,8 +76,8 @@ mod json_objects {
 ///         "success": true
 ///     }
 /// ```
-/// ```
-/// POST-Request at `api-url}/auth`
+/// ```text
+/// POST-Request at `{api-url}/auth`
 ///     {
 ///         "username": "testUser",
 ///         "passwd": "passTest"
@@ -126,16 +126,16 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
 ///
 /// # Examples
 ///
-/// ```
+/// ```text
 /// DELETE-Request at `{api-url}/auth` with a cookie containing a valid JWT
-/// => 200 [cookie with JWT is set]
+/// => 200 [cookie is removed]
 /// ```
-/// ```
+/// ```text
 /// DELETE-Request at `{api-url}/auth` without a cookie containing a JWT
 /// => 401
 ///     "token-cookie was not found"
 /// ```
-/// ```
+/// ```text
 /// DELETE-Request at `{api-url}/auth` with a cookie containing an invalid JWT
 /// => 401
 ///     "jwt token not valid"

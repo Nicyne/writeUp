@@ -71,7 +71,7 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
 ///
 /// # Examples
 ///
-/// ```
+/// ```text
 /// GET-Request at `{api-url}/notes` with a cookie containing a valid JWT
 /// => 200
 ///     [
@@ -95,7 +95,7 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
 ///         }
 ///     ]
 /// ```
-/// ```
+/// ```text
 /// GET-Request at `{api-url}/notes` without a cookie containing a JWT
 /// => 401
 ///     "token-cookie was not found"

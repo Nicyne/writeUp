@@ -10,30 +10,91 @@ use crate::web::auth::{get_user_from_request, get_user_id_from_request};
 use crate::web::note::json_objects::{NoteRequest, NoteResponse};
 
 // Response-/Request-Objects
+/// Structs modelling the request- and response-bodies
 mod json_objects {
     use serde::{Serialize, Deserialize};
     use crate::db_access::{AllowanceLevel, Note};
 
+    /// Body of a request containing a note
     #[derive(Deserialize)]
     pub struct NoteRequest {
+        /// Title of the note
         pub title: String,
+        /// Content of the note
         pub content: String,
+        /// Tags associated with the note
         pub tags: Vec<String>
     }
     impl NoteRequest {
+        /// Converts the Request-body into an actual Note-object
+        ///
+        /// # Arguments
+        ///
+        /// * `owner_id` - The user that owns the note
         pub fn to_note(self, owner_id: &str) -> Note {
             Note { title: self.title, content: self.content, owner_id: owner_id.to_string(), tags: self.tags }
         }
     }
 
+    /// Body of a response containing a note
     #[derive(Serialize)]
     pub struct NoteResponse {
+        /// The identifier of the note
         pub note_id: String,
+        /// The note-object
         pub note: Note,
+        /// The level of access the requesting user has regarding the note
         pub allowance: AllowanceLevel
     }
 }
 
+/// ENDPOINT: Takes a note and inserts it into the database
+///
+/// Returns one of the following HttpResponses:
+/// * `200` [Body: JSON] - Note was inserted successfully
+/// * `401` - Wrong Credentials
+/// * `500` - Something went wrong internally (debug)
+///
+/// # Arguments
+///
+/// * `req` - The HttpRequest that was made
+/// * `note_req` - The body of the request parsed to a NoteRequest-object
+/// * `db` - The AppData containing a Mutex-secured Database-connection
+///
+/// # Examples
+///
+/// ```text
+/// POST-Request at `{api-url}/note` with a cookie containing a valid JWT
+///     {
+///         "title": "Test-Note",
+///         "content": "This is but a simple demonstration",
+///         "tags": ["Test", "Note"]
+///     }
+/// => 200
+///     {
+///         "note_id": "7254fa970b62u3ag62dr4d3l",
+///         "note": {
+///             "title": "Test-Note",
+///             "content": "This is but a simple demonstration",
+///             "owner_id": "testUser",
+///             "tags": [
+///                 "Test",
+///                 "Note"
+///             ]
+///         },
+///         "allowance": "Owner"
+///     }
+/// ```
+/// ```text
+/// POST-Request at `{api-url}/note` without a cookie containing a JWT
+///     {
+///         "title": "Test-Note",
+///         "content": "This is but a simple demonstration",
+///         "tags": ["Test", "Note"]
+///     }
+/// => 401
+///     "token-cookie was not found"
+/// ```
 #[post("/note")]
 pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, db: Data<Mutex<Database>>) -> impl Responder {
     let note_req = note_req.into_inner();
@@ -61,6 +122,49 @@ pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, db: Da
     }
 }
 
+/// ENDPOINT: Returns a note from the database using it's identifier
+///
+/// Returns one of the following HttpResponses:
+/// * `200` - Note can be returned
+/// * `401` - Wrong Credentials
+/// * `403` - Insufficient access-level (no read-access)
+/// * `500` - Something went wrong internally (debug)
+///
+/// # Arguments
+///
+/// * `path` - A Path-object containing the id of the to-be-returned note
+/// * `req` - The HttpRequest that was made
+/// * `db` - The AppData containing a Mutex-secured Database-connection
+///
+/// # Examples
+///
+/// ```text
+/// GET-Request at `{api-url}/note/7254fa970b62u3ag62dr4d3l` with a cookie containing a valid JWT
+/// => 200
+///     {
+///         "note_id": "7254fa970b62u3ag62dr4d3l",
+///         "note": {
+///             "title": "Test-Note",
+///             "content": "This is but a simple demonstration",
+///             "owner_id": "testUser",
+///             "tags": [
+///                 "Test",
+///                 "Note"
+///             ]
+///         },
+///         "allowance": "Owner"
+///     }
+/// ```
+/// ```text
+/// GET-Request at `{api-url}/note/7254fa970b62u3ag62dr4d3l` without a cookie containing a JWT
+/// => 401
+///     "token-cookie was not found"
+/// ```
+/// ```text
+/// GET-Request at `{api-url}/note/7254fa970b62u3ag62dr4d3l` to a note the current user is not allowed to read
+/// => 403
+///     "no permission"
+/// ```
 #[get("/note/{note_id}")]
 pub async fn get_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
     let note_id = path.into_inner();
@@ -79,6 +183,66 @@ pub async fn get_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Datab
     }
 }
 
+/// ENDPOINT: Takes a note and updates its counterpart in the database with its own values
+///
+/// Returns one of the following HttpResponses:
+/// * `200` [Body: JSON] - Note was updated successfully
+/// * `401` - Wrong Credentials
+/// * `403` - Insufficient access-level (no write-access)
+/// * `500` - Something went wrong internally (debug)
+///
+/// # Arguments
+///
+/// * `path` - A Path-object containing the id of the to-be-deleted note
+/// * `req` - The HttpRequest that was made
+/// * `note_req` - The body of the request parsed to a NoteRequest-object
+/// * `db` - The AppData containing a Mutex-secured Database-connection
+///
+/// # Examples
+///
+/// ```text
+/// PUT-Request at `{api-url}/note/7254fa970b62u3ag62dr4d3l` with a cookie containing a valid JWT
+///     {
+///         "title": "Test-Note",
+///         "content": "This is but a simple demonstration",
+///         "tags": ["Test", "Note", "Updated"]
+///     }
+/// => 200
+///     {
+///         "note_id": "7254fa970b62u3ag62dr4d3l",
+///         "note": {
+///             "title": "Test-Note",
+///             "content": "This is but a simple demonstration",
+///             "owner_id": "testUser",
+///             "tags": [
+///                 "Test",
+///                 "Note",
+///                 "Updated"
+///             ]
+///         },
+///         "allowance": "Owner"
+///     }
+/// ```
+/// ```text
+/// PUT-Request at `{api-url}/note/7254fa970b62u3ag62dr4d3l` without a cookie containing a JWT
+///     {
+///         "title": "Test-Note",
+///         "content": "This is but a simple demonstration",
+///         "tags": ["Test", "Note", "Updated"]
+///     }
+/// => 401
+///     "token-cookie was not found"
+/// ```
+/// ```text
+/// PUT-Request at `{api-url}/note/7254fa970b62u3ag62dr4d3l` to a note the current user is not allowed to write to
+///     {
+///         "title": "Test-Note",
+///         "content": "This is but a simple demonstration",
+///         "tags": ["Test", "Note", "Updated"]
+///     }
+/// => 403
+///     "no permission"
+/// ```
 #[put("/note/{note_id}")]
 pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Json<NoteRequest>, db: Data<Mutex<Database>>) -> impl Responder {
     let note_req = note_req.into_inner();
@@ -105,6 +269,37 @@ pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Js
     }
 }
 
+/// ENDPOINT: Removes a note from the database using it's identifier
+///
+/// Returns one of the following HttpResponses:
+/// * `200` - Note was removed successfully
+/// * `401` - Wrong Credentials
+/// * `403` - Insufficient access-level (not Owner)
+/// * `500` - Something went wrong internally (debug)
+///
+/// # Arguments
+///
+/// * `path` - A Path-object containing the id of the to-be-deleted note
+/// * `req` - The HttpRequest that was made
+/// * `db` - The AppData containing a Mutex-secured Database-connection
+///
+/// # Examples
+///
+/// ```text
+/// DELETE-Request at `{api-url}/note/7254fa970b62u3ag62dr4d3l` with a cookie containing a valid JWT
+/// => 200
+///     "Note-deletion successful"
+/// ```
+/// ```text
+/// DELETE-Request at `{api-url}/note/7254fa970b62u3ag62dr4d3l` without a cookie containing a JWT
+/// => 401
+///     "token-cookie was not found"
+/// ```
+/// ```text
+/// DELETE-Request at `{api-url}/note/7254fa970b62u3ag62dr4d3l` to a note the current user is not allowed to delete
+/// => 403
+///     "no permission"
+/// ```
 #[delete("/note/{note_id}")]
 pub async fn remove_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
     let note_id = path.into_inner();
@@ -129,6 +324,13 @@ pub async fn remove_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Da
     }
 }
 
+/// Looks up and returns the level of access the current user has regarding the given note
+///
+/// # Arguments
+///
+/// * `note_id` - The identifier of the note in question
+/// * `req` - The HttpRequest that was made
+/// * `db` - A reference to the Mutex-secured Database-connection
 async fn get_allow_level_for_note(note_id: &str, req: HttpRequest, db: &Mutex<Database>) -> Result<AllowanceLevel, AuthError> {
     // Get the User making the request
     match get_user_from_request(req, db).await {
