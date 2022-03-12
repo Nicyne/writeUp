@@ -121,7 +121,6 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
 ///
 /// # Arguments
 ///
-/// * `db` - The AppData containing a Mutex-secured Database-connection
 /// * `req` - The HttpRequest that was made
 ///
 /// # Examples
@@ -140,8 +139,9 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
 /// => 401
 ///     "jwt token not valid"
 /// ```
+#[allow(unused_must_use)]
 #[delete("/auth")]
-pub async fn logout(db: Data<Mutex<Database>>, req: HttpRequest) -> impl Responder {
+pub async fn logout(req: HttpRequest) -> impl Responder {
     match get_user_id_from_request(req) {
         Ok(_) => {
             let mut resp = HttpResponse::Ok().finish();
