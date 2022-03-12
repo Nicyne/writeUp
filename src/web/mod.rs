@@ -14,6 +14,28 @@ use crate::db_access::{AllowanceLevel, DBError, get_dbo_by_id, Note, NOTES};
 use crate::web::auth::{get_user_from_request, logout};
 use crate::web::error::AuthError;
 
+/// Configures the web-server to add all endpoints
+///
+/// # Arguments
+///
+/// * `cfg` - A mutable ServiceConfig which takes the endpoints
+///
+/// # Examples
+///
+/// ```
+/// mod web;
+/// use actix_web::{App, HttpServer};
+///
+/// #[actix_rt::main]
+/// async fn main() -> std::io::Result<()> {
+///     HttpServer::new(move ||
+///         App::new()
+///             .service(actix_web::web::scope("/api").configure(web::handler_config)))
+///         .bind(("127.0.0.1", 8080))?
+///         .run()
+///         .await
+/// }
+/// ```
 pub fn handler_config(cfg: &mut ServiceConfig) {
     // Add all special handler
     cfg.service(auth::authenticate)
@@ -35,6 +57,49 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
         .service(share::update_share);
 }
 
+/// ENDPOINT: Compiles a list of all notes the current user has access to.
+///
+/// Returns one of the following HttpResponses:
+/// * `200` [Body: JSON] - List could be compiled
+/// * `401` - No user could be verified
+/// * `500` - Something went wrong internally (debug)
+///
+/// # Arguments
+///
+/// * `req` - The HttpRequest that was made
+/// * `db` - The AppData containing a Mutex-secured Database-connection
+///
+/// # Examples
+///
+/// ```text
+/// GET-Request at `{api-url}/notes` with a cookie containing a valid JWT
+/// => 200
+///     [
+///         {
+///             "note_id": "7254fa970b62u3ag62dr4d3l",
+///             "title": "Test-Note",
+///             "tags": [
+///                 "Test",
+///                 "Note"
+///             ],
+///             "allowance": "Owner"
+///         },
+///         {
+///             "note_id": "7354fa9uu782u3ag62t54d3l",
+///             "title": "Note, but this time different",
+///             "tags": [
+///                 "Note",
+///                 "Different"
+///             ],
+///             "allowance": "Read"
+///         }
+///     ]
+/// ```
+/// ```text
+/// GET-Request at `{api-url}/notes` without a cookie containing a JWT
+/// => 401
+///     "token-cookie was not found"
+/// ```
 #[get("/notes")]
 async fn list_notes(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
     // Define Response-Object
