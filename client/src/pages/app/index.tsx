@@ -6,12 +6,22 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useRouter } from 'next/router';
 import { UserContext } from 'providers/userContextProvider';
-import { useAsync } from '../../lib/useAsync';
+
+interface INote {
+  note_id: string;
+  note: {
+    title: string;
+    content: string;
+    owner_id: string;
+    tags: string[];
+  };
+  allowance: string[];
+}
 
 const Home: NextPage = () => {
   const router = useRouter();
-  const [notes, setNotes] = useState([]);
-  const [curNote, setCurNote] = useState<any>({});
+  const [notes, setNotes] = useState<INote[]>([]);
+  const [curNote, setCurNote] = useState<INote | undefined>(undefined);
   const { currentUser, loading, mutate } = useContext(UserContext);
 
   const getNotes = async () => {
@@ -25,13 +35,11 @@ const Home: NextPage = () => {
           throw err;
         });
 
-      setNotes(data);
+      return setNotes(data);
     } catch (error: any) {
-      setNotes([]);
+      return setNotes([]);
     }
   };
-
-  useAsync(getNotes, () => {});
 
   const loadNote = async (e: SyntheticEvent, id: number) => {
     e.preventDefault();
@@ -41,9 +49,30 @@ const Home: NextPage = () => {
       credentials: 'include',
     }).then((res) => res.json());
 
+    console.log(data);
+
     if (data) {
-      setCurNote(data.note);
+      setCurNote(data);
     }
+  };
+
+  const saveNote = async (e: SyntheticEvent) => {
+    e.preventDefault();
+
+    console.log(curNote);
+
+    if (!curNote) return;
+
+    const res = await fetch(
+      'http://localhost:8080/api/note/' + curNote.note_id,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(curNote.note),
+      }
+    );
+    await getNotes();
   };
 
   const logout = async () => {
@@ -62,6 +91,8 @@ const Home: NextPage = () => {
     <>
       {currentUser?.username}
       <button onClick={logout}>Logout</button>
+      <button onClick={getNotes}>Load Notes</button>
+      <button onClick={saveNote}>Save Note</button>
 
       <ul>
         {notes.length > 0 ? (
@@ -80,11 +111,15 @@ const Home: NextPage = () => {
           name="input"
           spellCheck="false"
           id="input"
-          value={curNote.content}
+          value={curNote?.note.content}
           onChange={({ target }) => {
+            if (!curNote) return;
             setCurNote({
               ...curNote,
-              content: target.value,
+              note: {
+                ...curNote.note,
+                content: target.value,
+              },
             });
           }}
         />
@@ -107,7 +142,7 @@ const Home: NextPage = () => {
               },
             }}
           >
-            {curNote.content ?? ''}
+            {curNote?.note.content ?? ''}
           </ReactMarkdown>
         </div>
       </div>
