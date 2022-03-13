@@ -59,15 +59,20 @@ body,
     list-style-position: inside;
 }
 
-.log {
+.login {
     height: 100%;
     width: 100%;
     display: grid;
     place-items: center;
-    grid-template-columns: 1fr 1fr;
 }
 
-.log form {
+.login form {
     display: flex;
     flex-direction: column;
+}
+
+.login form label {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 5px;
 }
