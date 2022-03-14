@@ -1,4 +1,4 @@
-import { INote } from 'types';
+import { INote, INoteShallow } from 'types';
 
 type endpoints = 'auth' | 'user' | 'note' | 'notes';
 
@@ -60,10 +60,10 @@ export class Api {
 
   /* Notes */
 
-  public async getNotes(): Promise<INote[]> {
+  public async getNotes(): Promise<INoteShallow[]> {
     const res = await this.requestBuilder('notes');
     if (!res.ok) return [];
-    return <INote[]>res.json();
+    return <INoteShallow[]>res.json();
   }
 
   public async getNote(id: string): Promise<INote> {
@@ -72,7 +72,31 @@ export class Api {
     return <INote>res.json();
   }
 
-  public async saveNote(note: INote): Promise<INote> {
+  public async addNote(
+    title: string,
+    content: string,
+    tags: string[]
+  ): Promise<INote> {
+    const res = await this.requestBuilder('note', undefined, {
+      method: 'POST',
+      headers: this.contentType,
+      credentials: 'include',
+      body: JSON.stringify({ title, content, tags }),
+    });
+    if (!res.ok) throw new Error('Could not create note');
+    return <INote>res.json();
+  }
+
+  public async deleteNote(id: string) {
+    const res = await this.requestBuilder('note', id, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error('Could not delete note');
+    return res.json();
+  }
+
+  public async updateNote(note: INote): Promise<INote> {
     const res = await this.requestBuilder('note', note.note_id, {
       method: 'PUT',
       headers: this.contentType,

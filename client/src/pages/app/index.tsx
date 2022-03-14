@@ -5,16 +5,18 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { UserContext } from 'providers/userContextProvider';
-import type { INote } from 'types';
+import type { INote, INoteShallow } from 'types';
 import { dApi } from 'lib';
 
 const Home: NextPage = () => {
-  const [notes, setNotes] = useState<INote[]>([]);
+  const [notes, setNotes] = useState<INoteShallow[]>([]);
   const [curNote, setCurNote] = useState<INote | undefined>(undefined);
   const { currentUser, loading, mutate } = useContext(UserContext);
+  const [newTitle, setNewTitle] = useState<string>('');
 
   const getNotes = async () => {
     const data = await dApi.getNotes();
+    console.log(data);
     setNotes(data);
   };
 
@@ -23,9 +25,30 @@ const Home: NextPage = () => {
     setCurNote(data);
   };
 
+  const addNote = async (e: SyntheticEvent) => {
+    e.preventDefault();
+
+    const note = await dApi.addNote(newTitle, '', []);
+    setNotes([
+      ...notes,
+      {
+        title: note.note.title,
+        note_id: note.note_id,
+        allowance: note.allowance,
+        tags: note.note.tags,
+      },
+    ]);
+  };
+
   const saveNote = async (e: SyntheticEvent) => {
     if (!curNote) return;
-    await dApi.saveNote(curNote);
+    await dApi.updateNote(curNote);
+    await getNotes();
+  };
+
+  const deleteNote = async (e: SyntheticEvent) => {
+    if (!curNote) return;
+    await dApi.deleteNote(curNote.note_id);
     await getNotes();
   };
 
@@ -41,13 +64,25 @@ const Home: NextPage = () => {
       {currentUser?.username}
       <button onClick={logout}>Logout</button>
       <button onClick={getNotes}>Load Notes</button>
-      <button onClick={saveNote}>Save Note</button>
+      <button onClick={saveNote} disabled={curNote?.allowance == 'Read'}>
+        Save Note
+      </button>
+      <button onClick={deleteNote}>Delete Note</button>
+      <form onSubmit={addNote}>
+        <input
+          type="text"
+          onChange={({ target }) => setNewTitle(target.value)}
+        />
+        <button type="submit" disabled={newTitle == ''}>
+          Create
+        </button>
+      </form>
 
       <ul>
         {notes.length > 0 ? (
-          notes?.map((note: any) => (
+          notes?.map((note) => (
             <li key={note.note_id} onClick={(e) => loadNote(e, note.note_id)}>
-              {note.title}
+              {note.title} {note.allowance == 'Read' ? '(readonly)' : ''}
             </li>
           ))
         ) : (
