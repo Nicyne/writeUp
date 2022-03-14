@@ -52,82 +52,84 @@ const Home: NextPage = () => {
     await getNotes();
   };
 
-  const logout = async () => {
-    await dApi.logout();
-    await mutate('user');
-  };
-
   if (loading) return <div>loading...</div>;
 
   return (
     <>
-      {currentUser?.username}
-      <button onClick={logout}>Logout</button>
-      <button onClick={getNotes}>Load Notes</button>
-      <button onClick={saveNote} disabled={curNote?.allowance == 'Read'}>
-        Save Note
-      </button>
-      <button onClick={deleteNote}>Delete Note</button>
-      <form onSubmit={addNote}>
-        <input
-          type="text"
-          onChange={({ target }) => setNewTitle(target.value)}
-        />
-        <button type="submit" disabled={newTitle == ''}>
-          Create
-        </button>
-      </form>
+      <div className="app">
+        <div className="sidebar">
+          <button onClick={getNotes}>Load Notes</button>
+          <button onClick={saveNote} disabled={curNote?.allowance == 'Read'}>
+            Save Note
+          </button>
+          <button onClick={deleteNote} disabled={curNote?.allowance == 'Read'}>
+            Delete Note
+          </button>
+          <form onSubmit={addNote}>
+            <input
+              type="text"
+              onChange={({ target }) => setNewTitle(target.value)}
+            />
+            <button type="submit" disabled={newTitle == ''}>
+              Create
+            </button>
+          </form>
 
-      <ul>
-        {notes.length > 0 ? (
-          notes?.map((note) => (
-            <li key={note.note_id} onClick={(e) => loadNote(e, note.note_id)}>
-              {note.title} {note.allowance == 'Read' ? '(readonly)' : ''}
-            </li>
-          ))
-        ) : (
-          <></>
-        )}
-      </ul>
+          <ul>
+            {notes.length > 0 ? (
+              notes?.map((note) => (
+                <li
+                  key={note.note_id}
+                  onClick={(e) => loadNote(e, note.note_id)}
+                >
+                  {note.title} {note.allowance == 'Read' ? '(readonly)' : ''}
+                </li>
+              ))
+            ) : (
+              <></>
+            )}
+          </ul>
+        </div>
 
-      <div className="grid">
-        <textarea
-          name="input"
-          spellCheck="false"
-          id="input"
-          value={curNote?.note.content}
-          onChange={({ target }) => {
-            if (!curNote) return;
-            setCurNote({
-              ...curNote,
-              note: {
-                ...curNote.note,
-                content: target.value,
-              },
-            });
-          }}
-        />
-        <div className="preview">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              code({ node, inline, className, children, ...props }) {
-                const match = /language-(\w+)/.exec(className || '');
-                return !inline && match ? (
-                  <Codeblock
-                    value={String(children).replace(/\n$/, '')}
-                    language={match[1]}
-                  />
-                ) : (
-                  <code className={className} {...props}>
-                    {children}
-                  </code>
-                );
-              },
+        <div className="grid">
+          <textarea
+            name="input"
+            spellCheck="false"
+            id="input"
+            value={curNote?.note.content}
+            onChange={({ target }) => {
+              if (!curNote) return;
+              setCurNote({
+                ...curNote,
+                note: {
+                  ...curNote.note,
+                  content: target.value,
+                },
+              });
             }}
-          >
-            {curNote?.note.content ?? ''}
-          </ReactMarkdown>
+          />
+          <div className="preview">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                code({ node, inline, className, children, ...props }) {
+                  const match = /language-(\w+)/.exec(className || '');
+                  return !inline && match ? (
+                    <Codeblock
+                      value={String(children).replace(/\n$/, '')}
+                      language={match[1]}
+                    />
+                  ) : (
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  );
+                },
+              }}
+            >
+              {curNote?.note.content ?? ''}
+            </ReactMarkdown>
+          </div>
         </div>
       </div>
     </>

@@ -8,7 +8,8 @@ body {
 
 html,
 body,
-#__next {
+#__next,
+main {
     height: 100%;
 }
 
@@ -25,34 +26,11 @@ body,
     grid-template-columns: 1fr 1fr;
 }
 
-.app {
-    height: 100%;
-    max-width: 100%;
-    display: grid;
-    grid-template-columns: minmax(auto, 10%) auto;
-}
-
-.list {
-    display: flex;
-    flex-direction: column;
-    list-style: none;
-}
-
-.list li {
-    border-radius: 0.25rem;
-    padding: 0.25rem;
-    margin: 0.25rem;
-    cursor: pointer;
-    transition: background-color 250ms;
-}
-
-.list li:hover {
-    background-color: lightgray;
-}
-
 #input {
     height: 100%;
     resize: none;
+    border: none;
+    border-right: 1px solid black;
 }
 
 .preview ul, .preview ol {
@@ -75,4 +53,60 @@ body,
     display: flex;
     flex-direction: column;
     margin-bottom: 5px;
+}
+
+.container {
+    height: 100%;
+    max-width: 1440px;
+    margin: 0 auto;
+}
+
+.pageHeader {
+    position: fixed;
+    height: 4rem;
+    top: 0;
+    right: 0;
+    left: 0;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 50%);
+}
+
+.pageHeader nav {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.pageHeader nav ul {
+    height: 100%;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 15px;
+    list-style: none;
+}
+
+.pageHeader nav ul li {
+    height: max-content;
+}
+
+.pageHeader a {
+    color: black;
+    font-weight: bold;
+}
+
+main {
+    padding-top: 4rem;
+}
+
+.app {
+    display: flex;
+    height: 100%;
+}
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    padding: 5px;
 }

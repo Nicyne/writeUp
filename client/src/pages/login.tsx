@@ -12,8 +12,9 @@ const Login: NextPage = () => {
   const [password, setPassword] = useState<string>('');
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     if (currentUser && !loading) router.push('/app');
-  }, [currentUser, loading]);
+  }, [currentUser, loading, router]);
 
   const login = async (e: SyntheticEvent) => {
     e.preventDefault();
