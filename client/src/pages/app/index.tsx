@@ -4,6 +4,7 @@ import { PrismAsync as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkEmoji from 'remark-emoji';
 import { UserContext } from 'providers/userContextProvider';
 import type { INote, INoteShallow } from 'types';
 import { dApi } from 'lib';
@@ -110,7 +111,7 @@ const Home: NextPage = () => {
           />
           <div className="preview">
             <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
+              remarkPlugins={[remarkGfm, remarkEmoji]}
               components={{
                 code({ node, inline, className, children, ...props }) {
                   const match = /language-(\w+)/.exec(className || '');
