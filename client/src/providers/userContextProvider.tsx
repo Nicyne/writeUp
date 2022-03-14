@@ -2,11 +2,12 @@ import { NextPage } from 'next';
 import { createContext } from 'react';
 import { useUser } from 'lib';
 import { useRouter } from 'next/router';
+import { IUser } from 'types';
 
 const allowedRoutes = ['/login', '/'];
 
 export interface IUserContext {
-  currentUser?: any;
+  currentUser?: IUser;
   loading?: boolean;
   mutate?: any;
 }

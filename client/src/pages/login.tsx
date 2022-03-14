@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { SyntheticEvent, useContext, useEffect, useState } from 'react';
 import { UserContext } from 'providers/userContextProvider';
+import { dApi } from '../lib';
 
 const Login: NextPage = () => {
   const router = useRouter();
@@ -17,19 +18,13 @@ const Login: NextPage = () => {
   const login = async (e: SyntheticEvent) => {
     e.preventDefault();
 
-    const res = await fetch('http://localhost:8080/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        username: username,
-        passwd: password,
-      }),
-    });
+    try {
+      await dApi.login(username, password);
 
-    if (res.ok) {
       await mutate('user');
       await router.push('/app');
+    } catch (err: any) {
+      console.error(err);
     }
   };
 

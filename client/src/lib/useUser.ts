@@ -1,11 +1,9 @@
 import useSWR from 'swr';
+import { dApi } from 'lib';
 
 const fetcher = () =>
-  fetch('http://localhost:8080/api/user', {
-    credentials: 'include',
-  }).then((r) => {
-    if (!r.ok) return { error: true };
-    return r.json();
+  dApi.getCurrentUser().catch((err) => {
+    return { error: true };
   });
 
 export function useUser() {
@@ -13,6 +11,6 @@ export function useUser() {
   // if data is not defined, the query has not completed
   const loading = !data;
   let user = null;
-  if (!data?.error) user = data;
+  if (!data?.hasOwnProperty('error')) user = data;
   return [user, { loading, mutate }];
 }

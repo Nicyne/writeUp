@@ -10,7 +10,7 @@ const Home: NextPage = () => {
       </Head>
 
       <h1>Hello World</h1>
-      <Link href="app/">To app</Link>
+      <Link href="/app">To app</Link>
     </>
   );
 };

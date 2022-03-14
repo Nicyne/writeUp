@@ -4,85 +4,34 @@ import { PrismAsync as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useRouter } from 'next/router';
 import { UserContext } from 'providers/userContextProvider';
-
-interface INote {
-  note_id: string;
-  note: {
-    title: string;
-    content: string;
-    owner_id: string;
-    tags: string[];
-  };
-  allowance: string[];
-}
+import type { INote } from 'types';
+import { dApi } from 'lib';
 
 const Home: NextPage = () => {
-  const router = useRouter();
   const [notes, setNotes] = useState<INote[]>([]);
   const [curNote, setCurNote] = useState<INote | undefined>(undefined);
   const { currentUser, loading, mutate } = useContext(UserContext);
 
   const getNotes = async () => {
-    try {
-      const data = await fetch('http://localhost:8080/api/notes', {
-        method: 'GET',
-        credentials: 'include',
-      })
-        .then((res) => res.json())
-        .catch((err) => {
-          throw err;
-        });
-
-      return setNotes(data);
-    } catch (error: any) {
-      return setNotes([]);
-    }
+    const data = await dApi.getNotes();
+    setNotes(data);
   };
 
-  const loadNote = async (e: SyntheticEvent, id: number) => {
-    e.preventDefault();
-
-    const data = await fetch('http://localhost:8080/api/note/' + id, {
-      method: 'GET',
-      credentials: 'include',
-    }).then((res) => res.json());
-
-    console.log(data);
-
-    if (data) {
-      setCurNote(data);
-    }
+  const loadNote = async (e: SyntheticEvent, id: string) => {
+    const data = await dApi.getNote(id);
+    setCurNote(data);
   };
 
   const saveNote = async (e: SyntheticEvent) => {
-    e.preventDefault();
-
-    console.log(curNote);
-
     if (!curNote) return;
-
-    const res = await fetch(
-      'http://localhost:8080/api/note/' + curNote.note_id,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(curNote.note),
-      }
-    );
+    await dApi.saveNote(curNote);
     await getNotes();
   };
 
   const logout = async () => {
-    await fetch('http://localhost:8080/api/auth', {
-      method: 'DELETE',
-      credentials: 'include',
-    });
-    //setUser(false);
+    await dApi.logout();
     await mutate('user');
-    await getNotes();
   };
 
   if (loading) return <div>loading...</div>;
