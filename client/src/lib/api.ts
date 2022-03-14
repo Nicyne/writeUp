@@ -8,6 +8,7 @@ export class Api {
 
   constructor(url: string) {
     if (!url) throw new Error('Invalid base URL');
+    if (!url.startsWith('https')) console.warn('Api-Url is not using https.');
     if (!url.endsWith('/')) url += '/';
     this.baseUrl = url;
   }
