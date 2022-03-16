@@ -1,18 +1,16 @@
 import type { NextPage } from 'next';
-import { FunctionComponent, SyntheticEvent, useContext, useState } from 'react';
+import { FunctionComponent, SyntheticEvent, useState } from 'react';
 import { PrismAsync as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
-import { UserContext } from 'providers/userContextProvider';
 import type { INote, INoteShallow } from 'types';
 import { dApi } from 'lib';
 
 const Home: NextPage = () => {
   const [notes, setNotes] = useState<INoteShallow[]>([]);
   const [curNote, setCurNote] = useState<INote | undefined>(undefined);
-  const { currentUser, loading, mutate } = useContext(UserContext);
   const [newTitle, setNewTitle] = useState<string>('');
 
   const getNotes = async () => {
@@ -53,8 +51,6 @@ const Home: NextPage = () => {
     await getNotes();
   };
 
-  if (loading) return <div>loading...</div>;
-
   return (
     <>
       <div className="app">
@@ -78,7 +74,7 @@ const Home: NextPage = () => {
 
           <ul>
             {notes.length > 0 ? (
-              notes?.map((note) => (
+              notes.map((note) => (
                 <li
                   key={note.note_id}
                   onClick={(e) => loadNote(e, note.note_id)}
