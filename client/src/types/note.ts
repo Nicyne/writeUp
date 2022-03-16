@@ -1,3 +1,5 @@
+type Allowance = 'Owner' | 'ReadWrite' | 'Read';
+
 export interface INote {
   note_id: string;
   note: {
@@ -6,12 +8,12 @@ export interface INote {
     owner_id: string;
     tags: string[];
   };
-  allowance: string;
+  allowance: Allowance;
 }
 
 export interface INoteShallow {
   note_id: string;
   title: string;
   tags: string[];
-  allowance: string;
+  allowance: Allowance;
 }

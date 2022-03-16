@@ -53,10 +53,23 @@ export class Api {
   }
 
   /* User */
+
   public async getCurrentUser() {
     const res = await this.requestBuilder('user');
     if (!res.ok) throw new Error('Could not get current User');
     return res.json();
+  }
+
+  public async addUser() {
+    throw new Error('Not implemented.');
+  }
+
+  public async deleteUser() {
+    throw new Error('Not implemented.');
+  }
+
+  public async updateUser() {
+    throw new Error('Not implemented.');
   }
 
   /* Notes */
