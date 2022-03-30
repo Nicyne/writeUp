@@ -42,5 +42,6 @@ yarn-error.log*
 .env.prod
 
 # backend
+dev
 target/
 .idea
