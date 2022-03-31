@@ -16,7 +16,8 @@ mod json_objects {
     #[derive(Serialize)]
     pub struct UserResponse {
         /// The username
-        pub username: String
+        pub username: String,
+        pub relations: Vec<String>
     }
 }
 
@@ -43,7 +44,8 @@ pub async fn add_user(req: HttpRequest) -> impl Responder { //TODO implement
 /// GET-Request at `{api-url}/user` with a cookie containing a valid JWT
 /// => 200 [cookie with JWT is set]
 ///     {
-///         "username": "testUser"
+///         "username": "testUser",
+///         "relations": ["otherUser", "yetAnotherUser"]
 ///     }
 /// ```
 /// ```text
@@ -54,7 +56,7 @@ pub async fn add_user(req: HttpRequest) -> impl Responder { //TODO implement
 #[get("/user")]
 pub async fn get_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
     match get_user_from_request(req, &db).await {
-        Ok(user) => HttpResponse::Ok().json(UserResponse { username: user._id }),
+        Ok(user) => HttpResponse::Ok().json(UserResponse { username: user._id, relations: user.connections }),
         Err(e) => e.gen_response()
     }
 }
