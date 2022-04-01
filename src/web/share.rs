@@ -57,6 +57,32 @@ mod json_objects {
     }
 }
 
+/// ENDPOINT: Creates an invitation code to allow the connection of two user
+///
+/// Returns one of the following HttpResponses:
+/// * `200` - Code has been created and is being returned
+/// * `401` - Missing or invalid JWT
+/// * `500` - Something went wrong internally (debug)
+///
+/// # Arguments
+///
+/// * `req` - The HttpRequest that was made
+/// * `db` - The AppData containing a Mutex-secured Database-connection
+///
+/// # Examples
+///
+/// ```text
+/// GET-Request at `{api-url}/share` with a cookie containing a valid JWT
+/// => 200
+///     {
+///         "code": "opH6eXAbVbJFR3QiDFQhbGciOiGTUzI1NiJ9.eyJggRLiOiJ5RLKM2IiwiZXhwIjoxNjQ4NzE5MTEzfQ.CUIReWW7JAj8q7cnJx93ofcsyrWfJh5VLJAj57vEwe4Q"
+///     }
+/// ```
+/// ```text
+/// GET-Request at `{api-url}/share` without a cookie containing a JWT
+/// => 401
+///     "token-cookie was not found"
+/// ```
 #[get("/share")]
 pub async fn get_relation_code(req: HttpRequest, db:Data<Mutex<Database>>) -> impl Responder {
     match get_user_from_request(req, &db).await {
@@ -70,6 +96,47 @@ pub async fn get_relation_code(req: HttpRequest, db:Data<Mutex<Database>>) -> im
     }
 }
 
+/// ENDPOINT: Attempts to create a relation between two user with an invite-code
+///
+/// Returns one of the following HttpResponses:
+/// * `200` [Body: JSON] - Relation could be established
+/// * `401` - Missing or invalid JWT / Invalid invitation-code
+/// * `500` - Something went wrong internally (debug)
+///
+/// # Arguments
+///
+/// * `req` - The HttpRequest that was made
+/// * `code_req` - The body of the request parsed to an InviteBody-object
+/// * `db` - The AppData containing a Mutex-secured Database-connection
+///
+/// # Examples
+///
+/// ```text
+/// POST-Request at `{api-url}/share` with a cookie containing a valid JWT
+///     {
+///         "code": "opH6eXAbVbJFR3QiDFQhbGciOiGTUzI1NiJ9.eyJggRLiOiJ5RLKM2IiwiZXhwIjoxNjQ4NzE5MTEzfQ.CUIReWW7JAj8q7cnJx93ofcsyrWfJh5VLJAj57vEwe4Q"
+///     }
+/// => 200
+///     {
+///         "success": true
+///     }
+/// ```
+/// ```text
+/// POST-Request at `{api-url}/share` without a cookie containing a JWT
+///     {
+///         "code": "opH6eXAbVbJFR3QiDFQhbGciOiGTUzI1NiJ9.eyJggRLiOiJ5RLKM2IiwiZXhwIjoxNjQ4NzE5MTEzfQ.CUIReWW7JAj8q7cnJx93ofcsyrWfJh5VLJAj57vEwe4Q"
+///     }
+/// => 401
+///     "token-cookie was not found"
+/// ```
+/// ```text
+/// POST-Request at `{api-url}/share` with a cookie containing a valid JWT [invite-code is expired]
+///     {
+///         "code": "opH6eXAbVbJFR3QiDFQhbGciOiGTUzI1NiJ9.eyJggRLiOiJ5RLKM2IiwiZXhwIjoxNjQ4NzE5MTEzfQ.CUIReWW7JAj8q7cnJx93ofcsyrWfJh5VLJAj57vEwe4Q"
+///     }
+/// => 401
+///     "token-cookie was not found"
+/// ```
 #[post("/share")]
 pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, db: Data<Mutex<Database>>) -> impl Responder {
     match get_user_from_request(req, &db).await {
@@ -104,8 +171,37 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
     }
 }
 
+/// ENDPOINT: Removes a relation between two user
+///
+/// Returns one of the following HttpResponses:
+/// * `200` - Relation has been successfully removed
+/// * `401` - Missing or invalid JWT
+/// * `500` - Something went wrong internally (debug)
+///
+/// # Arguments
+///
+/// * `path` - A Path-object containing the id of the related user
+/// * `req` - The HttpRequest that was made
+/// * `db` - The AppData containing a Mutex-secured Database-connection
+///
+/// # Examples
+///
+/// ```text
+/// DELETE-Request at `{api-url}/share/testUser` with a cookie containing a valid JWT
+/// => 200
+///     {
+///         "success": true
+///     }
+/// ```
+/// ```text
+/// DELETE-Request at `{api-url}/share/testUser` without a cookie containing a JWT
+/// => 401
+///     {
+///         "error": "token-cookie was not found"
+///     }
+/// ```
 #[delete("/share/{user_id}")]
-pub async fn remove_relation(req: HttpRequest, path: Path<String>, db: Data<Mutex<Database>>) -> impl Responder {
+pub async fn remove_relation(path: Path<String>, req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
     let related_user = path.into_inner();
     match get_user_from_request(req, &db).await {
         Ok(user) => {
@@ -156,8 +252,76 @@ pub async fn remove_relation(req: HttpRequest, path: Path<String>, db: Data<Mute
     }
 }
 
+/// ENDPOINT: Takes a list of allowed users and their allowed level of access and updates them accordingly
+///
+/// Returns one of the following HttpResponses:
+/// * `200` [Body: JSON] - All Shares have been updated
+/// * `401` - Missing or invalid JWT
+/// * `403` - Insufficient access-level (not owner)
+/// * `500` - Something went wrong internally (debug)
+///
+/// # Arguments
+///
+/// * `path` - A Path-object containing the id of the to-be-shared note
+/// * `req` - The HttpRequest that was made
+/// * `allow_req` - The body of the request parsed to a Vector containing ShareRequest-objects
+/// * `db` - The AppData containing a Mutex-secured Database-connection
+///
+/// # Examples
+///
+/// ```text
+/// PUT-Request at `{api-url}/share/7254fa970b62u3ag62dr4d3l` with a cookie containing a valid JWT
+///     [
+///         {
+///             "user_id": "testUser",
+///             "allowance": "ReadWrite"
+///         },
+///         {
+///             "user_id": "otherUser",
+///             "allowance": "Forbidden"
+///         }
+///     ]
+/// => 200
+///     {
+///         "success": true
+///     }
+/// ```
+/// ```text
+/// PUT-Request at `{api-url}/share/7254fa970b62u3ag62dr4d3l` without a cookie containing a JWT
+///     [
+///         {
+///             "user_id": "testUser",
+///             "allowance": "ReadWrite"
+///         },
+///         {
+///             "user_id": "otherUser",
+///             "allowance": "Forbidden"
+///         }
+///     ]
+/// => 401
+///     {
+///         "error": "token-cookie was not found"
+///     }
+/// ```
+/// ```text
+/// PUT-Request at `{api-url}/share/7254fa970b62u3ag62dr4d3l` to a note the user is not currently the owner of
+///     [
+///         {
+///             "user_id": "testUser",
+///             "allowance": "ReadWrite"
+///         },
+///         {
+///             "user_id": "otherUser",
+///             "allowance": "Forbidden"
+///         }
+///     ]
+/// => 403
+///     {
+///         "error": "no permission"
+///     }
+/// ```
 #[put("/share/{note_id}")]
-pub async fn update_allowances(req: HttpRequest, path: Path<String>, allow_req: web::Json<Vec<ShareRequest>>, db: Data<Mutex<Database>>) -> impl Responder {
+pub async fn update_allowances(path: Path<String>, req: HttpRequest, allow_req: web::Json<Vec<ShareRequest>>, db: Data<Mutex<Database>>) -> impl Responder {
     let note_id = path.into_inner();
     match get_allow_level_for_note(&note_id, req.clone(), &db).await {
         Ok(AllowanceLevel::Owner) => { // Sharing of a note is only allowed to the owner of said note
@@ -246,5 +410,5 @@ fn get_user_id_from_invite_code(code: &String) -> Result<String, AuthError> {
     decode::<Claims>(&code,
                      &DecodingKey::from_secret(INVITE_SECRET),
                      &Validation::new(Algorithm::HS256))
-        .map(|dec|dec.claims.sub).map_err(|_|AuthError::JWTTokenError)
+        .map(|dec|dec.claims.sub).map_err(|_|AuthError::JWTTokenError) //TODO Review error-types
 }
