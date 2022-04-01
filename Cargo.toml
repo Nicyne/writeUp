@@ -1,7 +1,7 @@
 [package]
 name = "writeUp"
 description = "Backend to the note-taking webapp 'writeUp'"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["SNiclas <dev@s-niclas.eu>"]
 edition = "2021"
 
