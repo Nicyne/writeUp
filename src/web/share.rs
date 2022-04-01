@@ -12,7 +12,7 @@ use crate::db_access::{update_dbo_by_id, USER, User, filter_allowances_by_user_i
 use crate::db_access::{AllowanceLevel::Forbidden, DBError::QueryError};
 use crate::web::{auth::get_user_from_request, note::get_allow_level_for_note};
 use crate::web::error::{AuthError, AuthError::InternalServerError};
-use crate::web::share::json_objects::{InviteBody, ShareRequest, SuccessResponse};
+use crate::web::share::json_objects::{InviteBody, RelationResponse, ShareRequest, SuccessResponse};
 
 // Invite-Assets
 /// Secret-phrase used to en- and decode invite-codes
@@ -49,6 +49,13 @@ mod json_objects {
         pub user_id: String,
         /// The level of access being given to the user
         pub allowance: AllowanceLevel
+    }
+
+    /// Body of a response after a relation between two user has been established
+    #[derive(Serialize)]
+    pub struct RelationResponse {
+        /// The identifier of the inviting user
+        pub user_id: String
     }
 
     #[derive(Serialize)]
@@ -118,7 +125,7 @@ pub async fn get_relation_code(req: HttpRequest, db:Data<Mutex<Database>>) -> im
 ///     }
 /// => 200
 ///     {
-///         "success": true
+///         "user_id": "otherUser"
 ///     }
 /// ```
 /// ```text
@@ -154,7 +161,7 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
                                                  doc! {"$push": {"connections": &invite_user_id}},
                                                  &db);
                     let update_invite_user =
-                        update_dbo_by_id::<User>(USER, invite_user_id,
+                        update_dbo_by_id::<User>(USER, invite_user_id.clone(),
                                                  doc! {"$push": {"connections": user._id}},
                                                  &db);
 
@@ -162,7 +169,7 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
                     if update_curr_user.await.is_err() || update_invite_user.await.is_err() {
                         return InternalServerError("Relation could not be established".to_string()).gen_response()
                     }
-                    HttpResponse::Ok().json(SuccessResponse { success: true })
+                    HttpResponse::Ok().json(RelationResponse { user_id: invite_user_id})
                 }
                 Err(e) => e.gen_response()
             }
