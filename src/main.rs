@@ -10,6 +10,7 @@
 //!
 //! 2. Make sure the following environment variables are set:
 //!     * `JWT_SECRET` - The secret used in creating and verifying JWTs
+//!     * `SHARE_SECRET` - The secret used in creating and verifying invitation-codes
 //!     * `DB_URI` - The address under which to find the Database
 //!     * `DB_PORT` - The port under which to find the Database
 //!     * `DB_USER` - The user under which writeUp will use the database

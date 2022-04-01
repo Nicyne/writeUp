@@ -26,8 +26,10 @@ pub const USER: &str = "user";
 // Schemata
 // Sub-Structures
 /// The individual levels of access-rights a user can have regarding a note
-#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq)]
 pub enum AllowanceLevel {
+    /// The user has no access to the note
+    Forbidden,
     /// The user can only read the note
     Read,
     /// The user can read and modify the note
@@ -290,4 +292,49 @@ pub async fn del_dbo_by_id<T: DatabaseObject>(collection: &str, id: String, db: 
         Ok(res) => Ok(res),
         Err(_) => Err(QueryError)
     }
+}
+
+/// Compiles a list of notes shared by a certain user.
+/// Returns either a vector of note_ids or a DBError if the list could not be compiled
+///
+/// # Arguments
+///
+/// * `allowed_user_id` - The identifier of the user to be searched
+/// * `allowing_user_id` - The identifier of the user sharing their notes
+/// * `db` - A Mutex-secured reference to the database-connection
+///
+/// # Examples
+///
+/// ```
+/// use std::sync::Mutex;
+/// use crate::db_access::{connect_to_database, filter_allowances_by_user_id};
+///
+/// let db = Mutex::new(connect_to_database(("localhost".to_string(), "27017".to_string()),
+///     ("testUser".to_string(), "testPass".to_string())).await.unwrap());
+///
+/// filter_allowances_by_user_id("testUser", "otherUser", &db).await;
+/// ```
+pub async fn filter_allowances_by_user_id(allowed_user_id: &str, allowing_user_id: &str, db: &Mutex<Database>) -> Result<Vec<String>, DBError> {
+    // Get the user that is to be searched
+    match get_dbo_by_id::<User>(USER, allowed_user_id.to_string(), db).await {
+        Ok(allowed_user) => {
+            let mut matched_allowances = Vec::new();
+            for allow in allowed_user.allowances {
+                // If a note is owned by the user, it can't fit the criteria
+                if allow.level == AllowanceLevel::Owner {
+                    continue
+                }
+                // Else check the actual note for its owners id
+                let note_result = get_dbo_by_id::<Note>(NOTES, allow.note_id.clone(), db).await;
+                if note_result.is_err() {
+                    return Err(note_result.err().unwrap())
+                } else if note_result.unwrap().owner_id.eq(&allowing_user_id) {
+                    matched_allowances.push(allow.note_id) //TODO? Add the entire allowance to generalize
+                }
+            }
+            Ok(matched_allowances)
+        }
+        Err(e) => Err(e)
+    }
+
 }

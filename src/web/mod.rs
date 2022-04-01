@@ -3,22 +3,28 @@
 //! # Endpoints:
 //!
 //! + System:
-//!     * `GET /system`         - Get System Information [[`return_system_status`]]
+//!     * `GET /system`             - Get System Information [[`return_system_status`]]
 //!
 //! + Authorisation:
-//!     * `POST /auth`          - Login [[`authenticate`](auth::authenticate)]
-//!     * `DELETE /auth`        - Logout [[`logout`](auth::logout)]
+//!     * `POST /auth`              - Login [[`authenticate`](auth::authenticate)]
+//!     * `DELETE /auth`            - Logout [[`logout`](auth::logout)]
 //!
 //! + Notes:
-//!     * `GET /notes`          - List of all available notes [[`list_notes`]]
+//!     * `GET /notes`              - List of all available notes [[`list_notes`]]
 //!
-//!     * `POST /note`          - Add a note [[`add_note`](note::add_note)]
-//!     * `GET /note/{id}`      - Get a note [[`get_note`](note::get_note)]
-//!     * `PUT /note/{id}`      - Update a note [[`update_note`](note::update_note)]
-//!     * `DELETE /note/{id}`   - Remove a note [[`remove_note`](note::remove_note)]
+//!     * `POST /note`              - Add a note [[`add_note`](note::add_note)]
+//!     * `GET /note/{note_id}`     - Get a note [[`get_note`](note::get_note)]
+//!     * `PUT /note/{note_id}`     - Update a note [[`update_note`](note::update_note)]
+//!     * `DELETE /note/{note_id}`  - Remove a note [[`remove_note`](note::remove_note)]
 //!
 //! + User:
-//!     * `GET /user`           - Get current user [[`get_user`](user::get_user)]
+//!     * `GET /user`               - Get current user [[`get_user`](user::get_user)]
+//!
+//! + Shares:
+//!     * `GET /share`              - Generate an invite code [[`get_relation_code`](share::get_relation_code)]
+//!     * `POST /share`             - Use an invite code to create a relation between two user [[`create_relation`](share::create_relation)]
+//!     * `DELETE /share/{user_id}` - Remove the relation between two user [[`remove_relation`](share::remove_relation)]
+//!     * `PUT /share/{note_id}`    - Update other users access-rights regarding the note [[`update_allowances`](share::update_allowances)]
 
 mod note;
 mod user;
@@ -74,9 +80,10 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
         .service(user::update_user)
         .service(user::remove_user);
     // Add all share-related handler
-    cfg.service(share::create_relation)
-        .service(share::get_relation_code)
-        .service(share::update_share);
+    cfg.service(share::get_relation_code)
+        .service(share::create_relation)
+        .service(share::remove_relation)
+        .service(share::update_allowances);
 }
 
 /// ENDPOINT: Returns information on the system currently running.

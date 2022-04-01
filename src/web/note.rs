@@ -331,7 +331,7 @@ pub async fn remove_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Da
 /// * `note_id` - The identifier of the note in question
 /// * `req` - The HttpRequest that was made
 /// * `db` - A reference to the Mutex-secured Database-connection
-async fn get_allow_level_for_note(note_id: &str, req: HttpRequest, db: &Mutex<Database>) -> Result<AllowanceLevel, AuthError> {
+pub async fn get_allow_level_for_note(note_id: &str, req: HttpRequest, db: &Mutex<Database>) -> Result<AllowanceLevel, AuthError> {
     // Get the User making the request
     match get_user_from_request(req, db).await {
         Ok(user) => {
