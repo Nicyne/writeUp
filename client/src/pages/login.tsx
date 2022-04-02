@@ -2,7 +2,7 @@ import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { SyntheticEvent, useContext, useEffect, useState } from 'react';
-import { UserContext } from 'providers/userContextProvider';
+import { UserContext } from 'context/userContext';
 import { dApi } from '../lib';
 
 const Login: NextPage = () => {

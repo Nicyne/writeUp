@@ -1,5 +1,5 @@
 import { NextPage } from 'next';
-import PageHeader from '../pageHeader';
+import { PageHeader } from 'components';
 
 const MainLayout: NextPage = ({ children }) => {
   return (

@@ -1,1 +1,3 @@
-export { default as PageHeader } from './pageHeader';
+export * from './layouts';
+export { PageHeader } from './pageHeader';
+export { CodeBlock } from './codeBlock';

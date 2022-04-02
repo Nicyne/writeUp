@@ -10,10 +10,6 @@
     "start": "next start",
     "lint": "next lint"
   },
-  "prettier": {
-    "tabWidth": 2,
-    "singleQuote": true
-  },
   "dependencies": {
     "next": "12.1.0",
     "react": "17.0.2",
@@ -32,5 +28,47 @@
     "eslint-config-next": "12.1.0",
     "prettier": "^2.5.1",
     "typescript": "4.6.2"
+  },
+  "prettier": {
+    "tabWidth": 2,
+    "singleQuote": true,
+    "semi": true,
+    "printWidth": 80
+  },
+  "eslintConfig": {
+    "extends": "next/core-web-vitals",
+    "rules": {
+      "semi": "error",
+      "quotes": [
+        "error",
+        "single"
+      ],
+      "block-spacing": [
+        "error",
+        "always"
+      ],
+      "comma-spacing": [
+        "error",
+        {
+          "before": false,
+          "after": true
+        }
+      ],
+      "arrow-parens": [
+        "error",
+        "always"
+      ],
+      "arrow-spacing": [
+        "error",
+        {
+          "before": true,
+          "after": true
+        }
+      ],
+      "eol-last": [
+        "error",
+        "always"
+      ]
+    }
   }
 }

@@ -1,21 +1,28 @@
 import type { NextPage } from 'next';
-import { FunctionComponent, SyntheticEvent, useState } from 'react';
-import { PrismAsync as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import { SyntheticEvent, useContext, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
 import type { INote, INoteShallow } from 'types';
+import { CodeBlock } from 'components';
 import { dApi } from 'lib';
+import { UserContext } from 'context';
 
 const Home: NextPage = () => {
   const [notes, setNotes] = useState<INoteShallow[]>([]);
   const [curNote, setCurNote] = useState<INote | undefined>(undefined);
   const [newTitle, setNewTitle] = useState<string>('');
+  const { currentUser, loading } = useContext(UserContext);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (currentUser && !loading) {
+      getNotes();
+    }
+  }, [currentUser, loading]);
 
   const getNotes = async () => {
     const data = await dApi.getNotes();
-    console.log(data);
     setNotes(data);
   };
 
@@ -27,14 +34,14 @@ const Home: NextPage = () => {
   const addNote = async (e: SyntheticEvent) => {
     e.preventDefault();
 
-    const note = await dApi.addNote(newTitle, '', []);
+    const response = await dApi.addNote(newTitle, '', []);
     setNotes([
       ...notes,
       {
-        title: note.note.title,
-        note_id: note.note_id,
-        allowance: note.allowance,
-        tags: note.note.tags,
+        title: response.note.title,
+        note_id: response.note_id,
+        allowance: response.allowance,
+        tags: response.note.tags,
       },
     ]);
   };
@@ -112,7 +119,7 @@ const Home: NextPage = () => {
                 code({ node, inline, className, children, ...props }) {
                   const match = /language-(\w+)/.exec(className || '');
                   return !inline && match ? (
-                    <Codeblock
+                    <CodeBlock
                       value={String(children).replace(/\n$/, '')}
                       language={match[1]}
                     />
@@ -130,17 +137,6 @@ const Home: NextPage = () => {
         </div>
       </div>
     </>
-  );
-};
-
-const Codeblock: FunctionComponent<{ value: string; language: string }> = ({
-  value,
-  language,
-}) => {
-  return (
-    <SyntaxHighlighter language={language} style={vscDarkPlus}>
-      {value}
-    </SyntaxHighlighter>
   );
 };
 
