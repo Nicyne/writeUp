@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use actix_web::{get, put, delete, post, Responder, HttpRequest, HttpResponse, web::{Data, Path}, web};
 use mongodb::bson::doc;
 use mongodb::Database;
-use crate::db_access::{AllowanceLevel, DBError, del_dbo_by_id, get_dbo_by_id, insert_dbo, Note, NOTES, update_dbo_by_id, User, USER};
+use crate::db_access::{AllowanceLevel, DBError, del_dbo_by_id, get_dbo_by_id, insert_dbo, is_safe, Note, NOTES, update_dbo_by_id, User, USER};
 use crate::web::error::AuthError;
 use crate::web::auth::{get_user_from_request, get_user_id_from_request};
 use crate::web::note::json_objects::{NoteRequest, NoteResponse};
@@ -168,6 +168,10 @@ pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, db: Da
 #[get("/note/{note_id}")]
 pub async fn get_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
     let note_id = path.into_inner();
+    // Check for potential injection-attempt
+    if !is_safe(&note_id) {
+        return AuthError::InternalServerError("Note-ID contains forbidden characters".to_string()).gen_response() //TODO Review error-types
+    }
     // Check if the user has clearance to view this note
     match get_allow_level_for_note(&note_id, req, db.get_ref()).await {
         Ok(allowance) => {
@@ -247,6 +251,10 @@ pub async fn get_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Datab
 pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Json<NoteRequest>, db: Data<Mutex<Database>>) -> impl Responder {
     let note_req = note_req.into_inner();
     let note_id = path.into_inner();
+    // Check for potential injection-attempt
+    if !is_safe(&note_id) {
+        return AuthError::InternalServerError("Note-ID contains forbidden characters".to_string()).gen_response() //TODO Review error-types
+    }
     // Check if the user has the clearance to update the note
     match get_allow_level_for_note(&note_id, req.clone(), &db).await {
         Ok(AllowanceLevel::Read) => AuthError::NoPermissionError.gen_response(), //Read-Only Access
@@ -303,6 +311,10 @@ pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Js
 #[delete("/note/{note_id}")]
 pub async fn remove_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
     let note_id = path.into_inner();
+    // Check for potential injection-attempt
+    if !is_safe(&note_id) {
+        return AuthError::InternalServerError("Note-ID contains forbidden characters".to_string()).gen_response() //TODO Review error-types
+    }
     // Check if the user has the clearance to deleting the note
     match get_allow_level_for_note(&note_id, req, &db).await {
         Ok(AllowanceLevel::Owner) =>  {

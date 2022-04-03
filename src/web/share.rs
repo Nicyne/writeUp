@@ -8,7 +8,7 @@ use jsonwebtoken::{Algorithm, decode, DecodingKey, encode, EncodingKey, Header, 
 use mongodb::bson::doc;
 use serde::{Serialize, Deserialize};
 use mongodb::{bson, Database};
-use crate::db_access::{update_dbo_by_id, USER, User, filter_allowances_by_user_id, AllowanceLevel, get_dbo_by_id};
+use crate::db_access::{update_dbo_by_id, USER, User, filter_allowances_by_user_id, AllowanceLevel, get_dbo_by_id, is_safe};
 use crate::db_access::{AllowanceLevel::Forbidden, DBError::QueryError};
 use crate::web::{auth::get_user_from_request, note::get_allow_level_for_note};
 use crate::web::error::{AuthError, AuthError::InternalServerError};
@@ -210,6 +210,10 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
 #[delete("/share/{user_id}")]
 pub async fn remove_relation(path: Path<String>, req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
     let related_user = path.into_inner();
+    // Check for potential injection-attempt
+    if !is_safe(&related_user) {
+        return InternalServerError("User-ID contains forbidden characters".to_string()).gen_response() //TODO Review error-types
+    }
     match get_user_from_request(req, &db).await {
         Ok(user) => {
             // Simple (non exhaustive) check for an already existing connection between users
@@ -330,6 +334,10 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, db: Data<Mute
 #[put("/share/{note_id}")]
 pub async fn update_allowances(path: Path<String>, req: HttpRequest, allow_req: web::Json<Vec<ShareRequest>>, db: Data<Mutex<Database>>) -> impl Responder {
     let note_id = path.into_inner();
+    // Check for potential injection-attempt
+    if !is_safe(&note_id) {
+        return InternalServerError("Note-ID contains forbidden characters".to_string()).gen_response() //TODO Review error-types
+    }
     match get_allow_level_for_note(&note_id, req.clone(), &db).await {
         Ok(AllowanceLevel::Owner) => { // Sharing of a note is only allowed to the owner of said note
             let curr_user = get_user_from_request(req, &db).await.unwrap();
