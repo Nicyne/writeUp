@@ -16,7 +16,7 @@ export const Editor: FunctionComponent<props> = ({ note }) => {
             </li>
           </ul>
         </header>
-        <textarea name="input" id="input" cols="30" rows="10"></textarea>
+        <textarea name="input" id="input" />
       </div>
       <div className="editorPreview"></div>
     </div>

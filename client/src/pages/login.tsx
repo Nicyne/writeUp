@@ -1,3 +1,4 @@
+import styles from 'styles/login.module.scss';
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
@@ -55,7 +56,9 @@ const Login: NextPage = () => {
             onChange={({ target }) => setPassword(target.value)}
           />
         </label>
-        <button type="submit">Login</button>
+        <button className={styles.button} type="submit">
+          Login
+        </button>
       </form>
     </div>
   );
