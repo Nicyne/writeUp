@@ -1,0 +1,187 @@
+@import 'variables';
+@import 'utils';
+
+html,
+body {
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+  Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+}
+
+html,
+body,
+#__next,
+main {
+  background-color: $bg-primary;
+  color: $fg-primary;
+  height: 100%;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.grid {
+  height: 100%;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+#input {
+  height: 100%;
+  background-color: $bg-primary;
+  color: $fg-primary;
+  resize: none;
+  border: none;
+  border-right: 1px solid black;
+}
+
+.preview ul, .preview ol {
+  list-style-position: inside;
+}
+
+.login {
+  height: 100%;
+  width: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.login form {
+  background-color: $bg-secondary;
+  padding: 40px 40px;
+  display: flex;
+  flex-direction: column;
+
+  h1 {
+    font-size: 1.2rem;
+    font-weight: bold;
+    align-self: center;
+    margin-bottom: 20px;
+  }
+
+  button {
+    width: fit-content;
+    align-self: center;
+    color: $fg-primary;
+    font-weight: bold;
+    font-size: 1rem;
+    background-color: teal;
+    padding: 7px 5px;
+    appearance: none;
+    border: none;
+    border-radius: $border-radius;
+    cursor: pointer;
+  }
+
+  input {
+    margin: 5px 0;
+    width: 350px;
+    padding: 5px;
+    color: $fg-secondary;
+    background: $bg-secondary;
+  }
+}
+
+.login form label {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+}
+
+.pageHeader {
+  position: fixed;
+  height: 4rem;
+  top: 0;
+  right: 0;
+  left: 0;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 50%);
+}
+
+.pageHeader nav {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pageHeader nav ul {
+  height: 100%;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 15px;
+  list-style: none;
+
+  button {
+    appearance: none;
+    border: none;
+    font-weight: bold;
+    color: $fg-primary;
+    background-color: teal;
+    padding: 7px 5px;
+    margin: 5px 0;
+    border-radius: $border-radius;
+    cursor: pointer;
+  }
+}
+
+.pageHeader nav ul li {
+  height: max-content;
+}
+
+.pageHeader a {
+  color: $fg-primary;
+  font-weight: bold;
+}
+
+main {
+  padding-top: 4rem;
+}
+
+.app {
+  display: flex;
+  height: 100%;
+}
+
+.sidebar {
+  background-color: $bg-secondary;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+
+  button {
+    appearance: none;
+    border: none;
+    font-weight: bold;
+    color: $fg-primary;
+    background-color: teal;
+    padding: 7px 5px;
+    margin: 5px 0;
+    border-radius: $border-radius;
+    cursor: pointer;
+  }
+
+  input {
+    width: 100%;
+    padding: 5px;
+    margin: 5px 0;
+  }
+
+  li {
+    width: 100%;
+    padding: 5px;
+    border-radius: $border-radius;
+    margin: 5px 0;
+    transition: background-color 120ms ease-in;
+    cursor: pointer;
+
+    &:hover {
+      background-color: $bg-primary;
+    }
+  }
+}

@@ -36,6 +36,7 @@ const Login: NextPage = () => {
       </Head>
 
       <form onSubmit={login}>
+        <h1>WriteUp</h1>
         <label htmlFor="username">
           Username
           <input

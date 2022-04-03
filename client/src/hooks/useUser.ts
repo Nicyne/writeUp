@@ -3,7 +3,7 @@ import { dApi } from 'lib';
 
 const fetcher = () =>
   dApi.getCurrentUser().catch((err) => {
-    return { error: true };
+    return { error: true }; //TODO: improve error handling here
   });
 
 export function useUser() {

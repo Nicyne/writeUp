@@ -1,5 +1,5 @@
 import type { NextPage } from 'next';
-import { SyntheticEvent, useContext, useEffect, useRef, useState } from 'react';
+import { SyntheticEvent, useContext, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
@@ -21,8 +21,6 @@ const Home: NextPage = () => {
   const [curNote, setCurNote] = useState<INote | undefined>(undefined);
   const [newTitle, setNewTitle] = useState<string>('');
   const { currentUser, loading } = useContext(UserContext);
-
-  const editor = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
