@@ -1,10 +1,10 @@
 import { NextPage } from 'next';
 import { createContext } from 'react';
-import { useUser } from 'lib';
+import { useUser } from 'hooks';
 import { useRouter } from 'next/router';
 import { IUser } from 'types';
+import { publicRoutes } from 'values';
 
-const allowedRoutes = ['/login', '/'];
 
 export interface IUserContext {
   currentUser?: IUser;
@@ -22,7 +22,7 @@ export const UserContextProvider: NextPage = ({ children }) => {
     typeof window !== 'undefined' &&
     !user &&
     !loading &&
-    !allowedRoutes.includes(router.pathname)
+    !publicRoutes.includes(router.pathname)
   ) {
     router.push('/login');
   }

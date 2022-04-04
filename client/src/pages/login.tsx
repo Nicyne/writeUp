@@ -1,8 +1,9 @@
+import styles from 'styles/login.module.scss';
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { SyntheticEvent, useContext, useEffect, useState } from 'react';
-import { UserContext } from 'providers/userContextProvider';
+import { UserContext } from 'context/userContext';
 import { dApi } from '../lib';
 
 const Login: NextPage = () => {
@@ -36,6 +37,7 @@ const Login: NextPage = () => {
       </Head>
 
       <form onSubmit={login}>
+        <h1>WriteUp</h1>
         <label htmlFor="username">
           Username
           <input
@@ -54,7 +56,9 @@ const Login: NextPage = () => {
             onChange={({ target }) => setPassword(target.value)}
           />
         </label>
-        <button type="submit">Login</button>
+        <button className={styles.button} type="submit">
+          Login
+        </button>
       </form>
     </div>
   );

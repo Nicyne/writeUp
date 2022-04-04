@@ -1,0 +1,27 @@
+@import 'variables';
+
+@mixin button {
+  color: $fg-primary;
+  font-weight: bold;
+  font-size: 1rem;
+  background-color: transparent;
+  padding: 7px 5px;
+  appearance: none;
+  border: 2px solid white;
+  cursor: pointer;
+  transition-duration: 100ms;
+  transition-timing-function: ease-in;
+  transition-property: background-color, color;
+
+  &:hover {
+    background-color: white;
+    color: $bg-primary;
+  }
+}
+
+@mixin container {
+  height: 100%;
+  max-width: $max-width;
+  margin: 0 auto;
+  padding: 0 10px;
+}

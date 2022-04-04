@@ -9,8 +9,10 @@ const Home: NextPage = () => {
         <title>WriteUp</title>
       </Head>
 
-      <h1>Hello World</h1>
-      <Link href="/app">To app</Link>
+      <div className="container">
+        <h1>Hello World</h1>
+        <Link href="/app">To app</Link>
+      </div>
     </>
   );
 };

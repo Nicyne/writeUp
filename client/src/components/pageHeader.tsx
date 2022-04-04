@@ -1,9 +1,9 @@
 import { FunctionComponent, SyntheticEvent, useContext } from 'react';
-import { UserContext } from '../providers/userContextProvider';
+import { UserContext } from '../context/userContext';
 import Link from 'next/link';
 import { dApi } from 'lib';
 
-const PageHeader: FunctionComponent = () => {
+export const PageHeader: FunctionComponent = () => {
   const { currentUser, mutate } = useContext(UserContext);
 
   const logout = async (e: SyntheticEvent) => {
@@ -40,5 +40,3 @@ const PageHeader: FunctionComponent = () => {
     </header>
   );
 };
-
-export default PageHeader;
