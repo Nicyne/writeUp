@@ -18,9 +18,9 @@
 //!     * `DELETE /note/{note_id}`  - Remove a note [[`remove_note`](note::remove_note)]
 //!
 //! + User:
-//!     * `POST /user`              - Get current user [[`add_user`](user::add_user)]
+//!     * `POST /user`              - Create a new user [[`add_user`](user::add_user)]
 //!     * `GET /user`               - Get current user [[`get_user`](user::get_user)]
-//!     * `DELETE /user`            - Get current user [[`remove_user`](user::remove_user)]
+//!     * `DELETE /user`            - Delete the current user and logout [[`remove_user`](user::remove_user)]
 //!
 //! + Shares:
 //!     * `GET /share`              - Generate an invite code [[`get_relation_code`](share::get_relation_code)]

@@ -28,13 +28,42 @@ mod json_objects {
         pub relations: Vec<String>
     }
 
+    /// Body of a request for a new user
     #[derive(Deserialize)]
     pub struct UserRequest {
+        /// The identifier of the new user
         pub username: String,
+        /// The password associated with the new user
         pub passwd: String //TODO DO NOT USE PLAIN TEXT PASSWORDS
     }
 }
 
+/// ENDPOINT: Creates a new user with the given credentials
+///
+/// Returns one of the following HttpResponses:
+/// * `200` [Body: JSON] - User was successfully created
+/// * `500` - Something went wrong internally (debug)
+///
+/// # Arguments
+///
+/// * `req` - The HttpRequest that was made
+/// * `user_req` - The body of the request parsed to a UserRequest-object
+/// * `db` - The AppData containing a Mutex-secured Database-connection
+///
+/// # Examples
+///
+/// ```text
+/// POST-Request at `{api-url}/user` with no token-cookie
+///     {
+///         "username": "otherUser",
+///         "passwd": "otherPass"
+///     }
+/// => 200
+///     {
+///         "username": "otherUser",
+///         "relations": []
+///     }
+/// ```
 #[post("/user")]
 pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db: Data<Mutex<Database>>) -> impl Responder {
     // Check if still logged in
@@ -89,7 +118,9 @@ pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db: Da
 /// ```text
 /// GET-Request at `{api-url}/user` without a cookie containing a JWT
 /// => 401
-///     "token-cookie was not found"
+///     {
+///         "error": "token-cookie was not found"
+///     }
 /// ```
 #[get("/user")]
 pub async fn get_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
@@ -99,6 +130,34 @@ pub async fn get_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Respo
     }
 }
 
+/// ENDPOINT: Removes a user from the database and logs them out
+///
+/// Returns one of the following HttpResponses:
+/// * `200` - User was removed successfully
+/// * `401` - Missing or invalid JWT
+/// * `500` - Something went wrong internally (debug)
+///
+/// # Arguments
+///
+/// * `req` - The HttpRequest that was made
+/// * `db` - The AppData containing a Mutex-secured Database-connection
+///
+/// # Examples
+///
+/// ```text
+/// DELETE-Request at `{api-url}/user` with a cookie containing a valid JWT
+/// => 200
+///     {
+///         "success": true
+///     }
+/// ```
+/// ```text
+/// DELETE-Request at `{api-url}/user` without a cookie containing a JWT
+/// => 401
+///     {
+///         "error": "token-cookie was not found"
+///     }
+/// ```
 #[delete("/user")]
 pub async fn remove_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder { //TODO add security check or something (maybe have a body with the user-information or something, password?)
     match get_user_from_request(req, &db).await { //TODO This function borrows a lot of lines from other endpoints
