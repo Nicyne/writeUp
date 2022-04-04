@@ -1,5 +1,5 @@
 import type { NextPage } from 'next';
-import { SyntheticEvent, useContext, useEffect, useState } from 'react';
+import { SyntheticEvent, useContext, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
@@ -22,6 +22,8 @@ const Home: NextPage = () => {
   const [newTitle, setNewTitle] = useState<string>('');
   const { currentUser, loading } = useContext(UserContext);
 
+  const addNoteForm = useRef<HTMLFormElement>(null);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (currentUser && !loading) {
@@ -42,6 +44,10 @@ const Home: NextPage = () => {
   const addNote = async (e: SyntheticEvent) => {
     e.preventDefault();
 
+    if (addNoteForm.current) {
+      addNoteForm.current.reset();
+    }
+
     const response = await dApi.addNote(newTitle, '', []);
     setNotes([
       ...notes,
@@ -60,9 +66,8 @@ const Home: NextPage = () => {
     await getNotes();
   };
 
-  const deleteNote = async (e: SyntheticEvent) => {
-    if (!curNote) return;
-    await dApi.deleteNote(curNote.note_id);
+  const deleteNote = async (e: SyntheticEvent, noteId: string) => {
+    await dApi.deleteNote(noteId);
     await getNotes();
   };
 
@@ -70,22 +75,21 @@ const Home: NextPage = () => {
     <>
       <div className="app">
         <div className="sidebar">
-          <button onClick={getNotes}>Load Notes</button>
-          <button onClick={saveNote} disabled={curNote?.allowance == 'Read'}>
-            Save Note
-          </button>
-          <button onClick={deleteNote} disabled={curNote?.allowance == 'Read'}>
-            Delete Note
-          </button>
-          <form onSubmit={addNote}>
-            <input
-              type="text"
-              onChange={({ target }) => setNewTitle(target.value)}
-            />
-            <button type="submit" disabled={newTitle == ''}>
-              Create
+          <div className="sidebar-buttons">
+            <button onClick={getNotes}>Load Notes</button>
+            <button onClick={saveNote} disabled={curNote?.allowance == 'Read'}>
+              Save Note
             </button>
-          </form>
+            <form onSubmit={addNote} ref={addNoteForm}>
+              <input
+                type="text"
+                onChange={({ target }) => setNewTitle(target.value)}
+              />
+              <button type="submit" disabled={newTitle == ''}>
+                Create
+              </button>
+            </form>
+          </div>
 
           <ul>
             {notes.length > 0 ? (
@@ -95,6 +99,11 @@ const Home: NextPage = () => {
                   onClick={(e) => loadNote(e, note.note_id)}
                 >
                   {note.title} {note.allowance == 'Read' ? '(readonly)' : ''}
+                  {note.allowance == 'Owner' && (
+                    <button onClick={(e) => deleteNote(e, note.note_id)}>
+                      x
+                    </button>
+                  )}
                 </li>
               ))
             ) : (

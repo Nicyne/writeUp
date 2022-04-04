@@ -91,6 +91,8 @@ body {
     padding: 5px;
     color: $fg-secondary;
     background: $bg-secondary;
+    border: 2px solid $fg-primary;
+    appearance: none;
   }
 }
 
@@ -155,9 +157,14 @@ main {
   flex-direction: column;
   padding: 10px;
 
-  button {
-    @include button;
-    margin: 2.5px 0;
+  .sidebar-buttons {
+    display: flex;
+    flex-direction: column;
+
+    button {
+      @include button;
+      margin: 2.5px 0;
+    }
   }
 
   input {
@@ -173,9 +180,31 @@ main {
     margin: 5px 0;
     transition: background-color 100ms ease-in;
     cursor: pointer;
+    display: flex;
+    align-items: center;
 
     &:hover {
       background-color: $bg-primary;
+
+      button {
+        opacity: 0.75;
+        transition: color 125ms ease-in;
+
+        &:hover {
+          opacity: 1;
+        }
+      }
+    }
+
+    button {
+      appearance: none;
+      background-color: transparent;
+      color: $fg-primary;
+      border: none;
+      margin-left: auto;
+      opacity: 0;
+      transition: opacity 150ms;
+      cursor: pointer;
     }
   }
 }
