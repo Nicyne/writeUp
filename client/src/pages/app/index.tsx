@@ -37,6 +37,7 @@ const Home: NextPage = () => {
   };
 
   const loadNote = async (e: SyntheticEvent, id: string) => {
+    console.log('called');
     if (curNote) {
       await saveNote(e);
     }
@@ -62,15 +63,18 @@ const Home: NextPage = () => {
         tags: response.note.tags,
       },
     ]);
+    loadNote(e, response.note_id);
   };
 
   const saveNote = async (e: SyntheticEvent) => {
     if (!curNote) return;
+    if (curNote.allowance == 'Read') return;
     await dApi.updateNote(curNote);
     await getNotes();
   };
 
   const deleteNote = async (e: SyntheticEvent, noteId: string) => {
+    e.stopPropagation();
     await dApi.deleteNote(noteId);
     await getNotes();
   };

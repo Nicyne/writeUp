@@ -188,9 +188,12 @@ main {
 
       button {
         opacity: 0.75;
-        transition: color 125ms ease-in;
+        transition-property: color, background-color;
+        transition-duration: 100ms;
+        transition-timing-function: ease-in;
 
         &:hover {
+          background-color: $bg-secondary;
           opacity: 1;
         }
       }
@@ -201,9 +204,12 @@ main {
       background-color: transparent;
       color: $fg-primary;
       border: none;
+      border-radius: $border-radius;
       margin-left: auto;
+      padding: 0 5px;
       opacity: 0;
       transition: opacity 150ms;
+      position: relative;
       cursor: pointer;
     }
   }
