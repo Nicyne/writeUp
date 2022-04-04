@@ -19,7 +19,7 @@ const JWT_SECRET: &[u8] = env!("JWT_SECRET").as_bytes(); //TODO secret is static
 /// Time in minutes until a JWT expires
 const JWT_DURATION_MINUTES: i64 = 60;
 /// Name of the cookie carrying the JWT
-const JWT_TOKEN_COOKIE_NAME: &str = "writeup_jwt";
+pub const JWT_TOKEN_COOKIE_NAME: &str = "writeup_jwt"; //TODO make private
 
 /// Struct containing all information to be encoded in the JWT
 #[derive(Debug, Deserialize, Serialize)]

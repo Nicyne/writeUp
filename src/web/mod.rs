@@ -18,7 +18,9 @@
 //!     * `DELETE /note/{note_id}`  - Remove a note [[`remove_note`](note::remove_note)]
 //!
 //! + User:
+//!     * `POST /user`              - Get current user [[`add_user`](user::add_user)]
 //!     * `GET /user`               - Get current user [[`get_user`](user::get_user)]
+//!     * `DELETE /user`            - Get current user [[`remove_user`](user::remove_user)]
 //!
 //! + Shares:
 //!     * `GET /share`              - Generate an invite code [[`get_relation_code`](share::get_relation_code)]
@@ -77,7 +79,6 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
     // Add all user-related handler
     cfg.service(user::add_user)
         .service(user::get_user)
-        .service(user::update_user)
         .service(user::remove_user);
     // Add all share-related handler
     cfg.service(share::get_relation_code)
