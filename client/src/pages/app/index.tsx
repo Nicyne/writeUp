@@ -37,6 +37,10 @@ const Home: NextPage = () => {
   };
 
   const loadNote = async (e: SyntheticEvent, id: string) => {
+    if (curNote) {
+      await saveNote(e);
+    }
+
     const data = await dApi.getNote(id);
     setCurNote(data);
   };
