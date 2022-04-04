@@ -23,6 +23,10 @@ pub const CREDENTIALS: &str = "creds";
 /// Identifier of the collection containing all user-objects
 pub const USER: &str = "user";
 
+// Various constants
+/// Chars not serving a use outside of a potential injection-attempt
+const FORBIDDEN_CHARS:[char;4] = ['{', '}', '$', ':']; //TODO? Check for '.' (only used in jwt so far)
+
 // Schemata
 // Sub-Structures
 /// The individual levels of access-rights a user can have regarding a note
@@ -110,6 +114,7 @@ impl DatabaseObject for Note {}
 
 // Error-Types
 /// Errors that can appear when accessing the database
+#[allow(dead_code)]
 #[derive(Error, Debug)]
 pub enum DBError {
     /// An error that occurs when the wrong credentials have been supplied
@@ -124,6 +129,32 @@ pub enum DBError {
     /// An error that occurs when the given query could not find a fitting document to return
     #[error("no document found")]
     NoDocumentFoundError
+}
+
+/// Tests a string for potential injection-attempts
+///
+/// # Arguments
+///
+/// * `str` - The string to be checked
+///
+/// # Examples
+///
+/// ```
+/// use crate::db_access::is_safe;
+///
+/// let good_string = "Hey, i can do a whole lot here, can't i?";
+/// let bad_string = "%7B%24ne%3Anull%7D"; // eq: {$ne:null}
+///
+/// assert!(is_safe(good_string));
+/// assert!(!is_safe(bad_string));
+/// ```
+pub fn is_safe(str: &str) -> bool {
+    for char in FORBIDDEN_CHARS {
+        if str.contains(char) {
+            return false
+        }
+    }
+    return true
 }
 
 /// Attempts to create a connection to the db-server and returns it
