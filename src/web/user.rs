@@ -145,7 +145,7 @@ pub async fn get_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Respo
 ///
 /// ```text
 /// DELETE-Request at `{api-url}/user` with a cookie containing a valid JWT
-/// => 200
+/// => 200 [cookie is removed]
 ///     {
 ///         "success": true
 ///     }
