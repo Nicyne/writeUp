@@ -124,7 +124,7 @@ const Home: NextPage = () => {
                   {note.title} {note.allowance == 'Read' ? '(readonly)' : ''}
                   {note.allowance == 'Owner' && (
                     <button onClick={(e) => deleteNote(e, note.note_id)}>
-                      x
+                      &#x2715;
                     </button>
                   )}
                 </li>

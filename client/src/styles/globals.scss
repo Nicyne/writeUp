@@ -195,7 +195,7 @@ main {
         transition-timing-function: ease-in;
 
         &:hover {
-          background-color: $bg-secondary;
+          background-color: #cd3545;
           opacity: 1;
         }
       }
@@ -211,7 +211,6 @@ main {
       padding: 0 5px;
       opacity: 0;
       transition: opacity 150ms;
-      position: relative;
       cursor: pointer;
     }
   }
