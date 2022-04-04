@@ -2047,6 +2047,7 @@ dependencies = [
  "futures",
  "jsonwebtoken",
  "mongodb",
+ "rand",
  "serde",
  "serde_json",
  "thiserror",

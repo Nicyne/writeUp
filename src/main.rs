@@ -9,13 +9,13 @@
 //! 1. Make sure the database is up and running
 //!
 //! 2. Make sure the following environment variables are set:
-//!     * `JWT_SECRET` - The secret used in creating and verifying JWTs
-//!     * `SHARE_SECRET` - The secret used in creating and verifying invitation-codes
 //!     * `DB_URI` - The address under which to find the Database
 //!     * `DB_PORT` - The port under which to find the Database
 //!     * `DB_USER` - The user under which writeUp will use the database
 //!     * `DB_PASSWD` - The password of above's user
 //!     * `API_PORT` - The port under which to find the REST-API *[default: `8080`]*
+//!     * `JWT_SECRET` - The secret used in creating and verifying JWTs *[default: random]*
+//!     * `SHARE_SECRET` - The secret used in creating and verifying invitation-codes *[default: random]*
 //!
 //! 3. Start up the server by executing `writeUp` and wait for
 //!     ```text
@@ -40,15 +40,37 @@ use std::env;
 use std::sync::Mutex;
 use actix_web::{App, HttpServer};
 use actix_web::web::Data;
+use rand::distributions::Alphanumeric;
+use rand::Rng;
 use crate::db_access::connect_to_database;
+
+/// The name of the environment-variable containing the jwt-secret
+pub const JWT_SECRET_ENV_VAR_KEY: &str = "JWT_SECRET";
+/// The name of the environment-variable containing the share-secret
+pub const SHARE_SECRET_ENV_VAR_KEY: &str = "SHARE_SECRET";
+/// The default length at which a given secret-string gets generated
+const SECRET_SIZE: usize = 16;
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     println!("Starting up writeUp");
-    // Check for required environment-variables
+
     println!("Checking for environment-variables");
+    // Set random secrets for encryption if not predefined
+    if env::var(JWT_SECRET_ENV_VAR_KEY).is_err() {
+        let new_secret: String = rand::thread_rng().sample_iter(&Alphanumeric)
+            .take(SECRET_SIZE).map(char::from).collect();
+        env::set_var(JWT_SECRET_ENV_VAR_KEY, new_secret);
+    }
+    if env::var(SHARE_SECRET_ENV_VAR_KEY).is_err() {
+        let new_secret: String = rand::thread_rng().sample_iter(&Alphanumeric)
+            .take(SECRET_SIZE).map(char::from).collect();
+        env::set_var(SHARE_SECRET_ENV_VAR_KEY, new_secret);
+    }
+    // The port to listen to
     let api_port = env::var("API_PORT").unwrap_or("8080".to_string()).parse::<u16>().unwrap();
-    let db_uri = env::var("DB_URI").expect("Env-Variable 'DB_URI' needs to be set");
+    // Database-related environment variables
+    let db_uri = env::var("DB_URI").expect("Env-Variable 'DB_URI' needs to be set"); //TODO? Combine the following four vars to one big 'CONFIG_MONGODB_URL'
     let db_port = env::var("DB_PORT").expect("Env-Variable 'DB_PORT' needs to be set");
     let db_user = env::var("DB_USER").expect("Env-Variable 'DB_USER' needs to be set");
     let db_passwd = env::var("DB_PASSWD").expect("Env-Variable 'DB_PASSWD' needs to be set");

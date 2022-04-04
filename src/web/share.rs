@@ -1,5 +1,6 @@
 //! Endpoints regarding the sharing of notes and connecting of users
 
+use std::env;
 use std::sync::Mutex;
 use actix_web::{get, put, post, delete, Responder, HttpRequest, HttpResponse, web};
 use actix_web::web::{Data, Path};
@@ -10,13 +11,12 @@ use serde::{Serialize, Deserialize};
 use mongodb::{bson, Database};
 use crate::db_access::{update_dbo_by_id, USER, User, filter_allowances_by_user_id, AllowanceLevel, get_dbo_by_id, is_safe};
 use crate::db_access::{AllowanceLevel::Forbidden, DBError::QueryError};
+use crate::SHARE_SECRET_ENV_VAR_KEY;
 use crate::web::{auth::get_user_from_request, note::get_allow_level_for_note};
 use crate::web::error::{AuthError, AuthError::InternalServerError};
 use crate::web::share::json_objects::{InviteBody, RelationResponse, ShareRequest, SuccessResponse};
 
 // Invite-Assets
-/// Secret-phrase used to en- and decode invite-codes
-const INVITE_SECRET: &[u8] = env!("SHARE_SECRET").as_bytes(); //TODO secret is static
 /// Time in minutes until an invite expires
 const INVITE_DURATION_MINUTES: i64 = 30;
 
@@ -412,7 +412,7 @@ fn gen_invite(uid: &str) -> Result<String, AuthError> {
     let header = Header::new(Algorithm::HS256);
 
     // Generate the invite
-    encode(&header, &claims, &EncodingKey::from_secret(INVITE_SECRET))
+    encode(&header, &claims, &EncodingKey::from_secret(env::var(SHARE_SECRET_ENV_VAR_KEY).unwrap().as_bytes()))
         .map_err(|_| AuthError::InternalServerError("invite-code could not be created".to_string()))
 }
 
@@ -423,7 +423,7 @@ fn gen_invite(uid: &str) -> Result<String, AuthError> {
 /// * `code` - Invite-code to be verified
 fn get_user_id_from_invite_code(code: &String) -> Result<String, AuthError> {
     decode::<Claims>(&code,
-                     &DecodingKey::from_secret(INVITE_SECRET),
+                     &DecodingKey::from_secret(env::var(SHARE_SECRET_ENV_VAR_KEY).unwrap().as_bytes()),
                      &Validation::new(Algorithm::HS256))
         .map(|dec|dec.claims.sub).map_err(|_|AuthError::JWTTokenError) //TODO Review error-types
 }
