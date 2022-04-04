@@ -63,7 +63,7 @@ const Home: NextPage = () => {
         tags: response.note.tags,
       },
     ]);
-    loadNote(e, response.note_id);
+    await loadNote(e, response.note_id);
   };
 
   const saveNote = async (e: SyntheticEvent) => {
