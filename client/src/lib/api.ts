@@ -60,12 +60,28 @@ export class Api {
     return res.json();
   }
 
-  public async addUser() {
-    throw new Error('Not implemented.');
+  public async addUser(username: string, password: string) {
+    if (!username || !password) throw new Error('received invalid credentials');
+    const res = await this.requestBuilder('user', undefined, {
+      method: 'POST',
+      credentials: 'include',
+      headers: this.contentType,
+      body: JSON.stringify({
+        username: username,
+        passwd: password,
+      }),
+    });
+    if (!res.ok) throw new Error(res.error);
+    return res.json();
   }
 
   public async deleteUser() {
-    throw new Error('Not implemented.');
+    const res = await this.requestBuilder('user', undefined, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error(res.error);
+    return res.json();
   }
 
   public async updateUser() {
