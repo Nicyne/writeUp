@@ -23,6 +23,7 @@ const Home: NextPage = () => {
   const { currentUser, loading } = useContext(UserContext);
 
   const addNoteForm = useRef<HTMLFormElement>(null);
+  const inputArea = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -64,6 +65,7 @@ const Home: NextPage = () => {
       },
     ]);
     await loadNote(e, response.note_id);
+    inputArea.current?.focus();
   };
 
   const saveNote = async (e: SyntheticEvent) => {
@@ -90,9 +92,20 @@ const Home: NextPage = () => {
             <button onClick={saveNote} disabled={curNote?.allowance == 'Read'}>
               Save Note
             </button>
+            {curNote && (
+              <button
+                onClick={async (e) => {
+                  await saveNote(e);
+                  setCurNote(undefined);
+                }}
+              >
+                Close Note
+              </button>
+            )}
             <form onSubmit={addNote} ref={addNoteForm}>
               <input
                 type="text"
+                placeholder="New Note Name"
                 onChange={({ target }) => setNewTitle(target.value)}
               />
               <button type="submit" disabled={newTitle == ''}>
@@ -129,6 +142,7 @@ const Home: NextPage = () => {
               spellCheck="false"
               id="input"
               value={curNote?.note.content}
+              ref={inputArea}
               onKeyUp={(e) => {
                 const key = e.key;
 
