@@ -149,7 +149,8 @@ pub async fn logout(req: HttpRequest) -> impl Responder {
     match get_user_id_from_request(req) {
         Ok(_) => {
             let mut resp = HttpResponse::Ok().json(TokenResponse { success: true });
-            resp.add_removal_cookie(&CookieBuilder::new(JWT_TOKEN_COOKIE_NAME, "-1").same_site(SameSite::Strict).http_only(true).finish());
+            resp.add_removal_cookie(&CookieBuilder::new(JWT_TOKEN_COOKIE_NAME, "-1")
+                .same_site(SameSite::Strict).http_only(true).finish());
             resp
         }
         Err(e) => e.gen_response()

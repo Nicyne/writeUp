@@ -1,16 +1,15 @@
 //! Endpoints regarding user-objects and their manipulation
 
 use std::sync::Mutex;
-use actix_web::{get, put, delete, post, Responder, HttpRequest, HttpResponse, web};
+use actix_web::{get, delete, post, Responder, HttpRequest, HttpResponse, web};
 use actix_web::cookie::{CookieBuilder, SameSite};
-use actix_web::web::{Data, Path};
+use actix_web::web::Data;
 use mongodb::bson::doc;
 use mongodb::Database;
-use crate::db_access::{Credential, CREDENTIALS, del_dbo_by_id, get_dbo_by_id, insert_dbo, is_safe, Note, NOTES, update_dbo_by_id, User, USER};
+use crate::db_access::{Credential, CREDENTIALS, del_dbo_by_id, get_dbo_by_id, insert_dbo, Note, NOTES, update_dbo_by_id, User, USER};
 use crate::db_access::AllowanceLevel::Owner;
 use crate::db_access::DBError::{NoDocumentFoundError, QueryError};
 use crate::web::auth::{get_user_from_request, get_user_id_from_request, JWT_TOKEN_COOKIE_NAME};
-use crate::web::error::AuthError;
 use crate::web::error::AuthError::InternalServerError;
 use crate::web::user::json_objects::{UserRequest, UserResponse};
 
@@ -158,6 +157,7 @@ pub async fn get_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Respo
 ///         "error": "token-cookie was not found"
 ///     }
 /// ```
+#[allow(unused_must_use)]
 #[delete("/user")]
 pub async fn remove_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder { //TODO add security check or something (maybe have a body with the user-information or something, password?)
     match get_user_from_request(req, &db).await { //TODO This function borrows a lot of lines from other endpoints

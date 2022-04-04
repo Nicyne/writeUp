@@ -114,6 +114,7 @@ impl DatabaseObject for Note {}
 
 // Error-Types
 /// Errors that can appear when accessing the database
+#[allow(dead_code)]
 #[derive(Error, Debug)]
 pub enum DBError {
     /// An error that occurs when the wrong credentials have been supplied
