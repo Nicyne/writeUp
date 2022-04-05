@@ -186,5 +186,5 @@ export class Api {
   }
 }
 
-const defaultApi = new Api('http://localhost:8080/api');
+const defaultApi = new Api(process.env.API_URL ?? 'http://localhost:8080/api');
 export default defaultApi;
