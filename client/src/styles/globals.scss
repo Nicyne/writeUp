@@ -27,11 +27,13 @@ body {
 }
 
 * {
-  margin: 0;
-  padding: 0;
   font-size: 1rem;
-  box-sizing: border-box;
 }
+*, *::before, *::after {
+   margin: 0;
+   padding: 0;
+   box-sizing: border-box;
+ }
 
 .container {
   @include container;
@@ -86,13 +88,9 @@ body {
   }
 
   input {
+    @include text-input;
     margin: 5px 0;
     width: 350px;
-    padding: 5px;
-    color: $fg-secondary;
-    background: $bg-secondary;
-    border: 2px solid $fg-primary;
-    appearance: none;
   }
 }
 
@@ -147,11 +145,15 @@ main {
 }
 
 .app {
-  display: flex;
+  display: grid;
+  grid-template-columns: 300px auto;
   height: 100%;
 }
 
 .sidebar {
+  width: 300px;
+  max-width: 300px;
+  height: 100%;
   background-color: $bg-secondary;
   display: flex;
   flex-direction: column;
@@ -168,9 +170,9 @@ main {
   }
 
   input {
+    @include text-input;
     width: 100%;
-    padding: 5px;
-    margin: 5px 0;
+    margin: 2.5px 0;
   }
 
   li {
@@ -193,7 +195,7 @@ main {
         transition-timing-function: ease-in;
 
         &:hover {
-          background-color: $bg-secondary;
+          background-color: #cd3545;
           opacity: 1;
         }
       }
@@ -209,7 +211,6 @@ main {
       padding: 0 5px;
       opacity: 0;
       transition: opacity 150ms;
-      position: relative;
       cursor: pointer;
     }
   }

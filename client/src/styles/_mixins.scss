@@ -19,6 +19,14 @@
   }
 }
 
+@mixin text-input {
+  padding: 5px;
+  color: $fg-secondary;
+  background: $bg-secondary;
+  border: 2px solid $fg-primary;
+  appearance: none;
+}
+
 @mixin container {
   height: 100%;
   max-width: $max-width;

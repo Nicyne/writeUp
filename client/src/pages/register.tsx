@@ -17,14 +17,13 @@ const Login: NextPage = () => {
     if (currentUser && !loading) router.push('/app');
   }, [currentUser, loading, router]);
 
-  const login = async (e: SyntheticEvent) => {
+  const register = async (e: SyntheticEvent) => {
     e.preventDefault();
 
     try {
-      await dApi.login(username, password);
+      await dApi.addUser(username, password);
 
-      await mutate('user');
-      await router.push('/app');
+      await router.push('/login');
     } catch (err: any) {
       console.error(err);
     }
@@ -33,10 +32,10 @@ const Login: NextPage = () => {
   return (
     <div className="login">
       <Head>
-        <title>Login | Writeup</title>
+        <title>Register | Writeup</title>
       </Head>
 
-      <form onSubmit={login}>
+      <form onSubmit={register}>
         <h1>WriteUp</h1>
         <label htmlFor="username">
           Username
@@ -59,7 +58,7 @@ const Login: NextPage = () => {
           />
         </label>
         <button className={styles.button} type="submit">
-          Login
+          Register
         </button>
       </form>
     </div>

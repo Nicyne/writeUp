@@ -11,6 +11,11 @@ export const PageHeader: FunctionComponent = () => {
     mutate('user');
   };
 
+  const deleteUser = async (e: SyntheticEvent) => {
+    await dApi.deleteUser();
+    mutate('user');
+  };
+
   return (
     <header className="pageHeader">
       <div className="container">
@@ -26,13 +31,23 @@ export const PageHeader: FunctionComponent = () => {
               <Link href={'/app'}>App</Link>
             </li>
             {currentUser ? (
-              <li>
-                <button onClick={logout}>Logout</button>
-              </li>
+              <>
+                <li>
+                  <button onClick={logout}>Logout</button>
+                </li>
+                <li>
+                  <button onClick={deleteUser}>Delete Account</button>
+                </li>
+              </>
             ) : (
-              <li>
-                <Link href={'/login'}>Login</Link>
-              </li>
+              <>
+                <li>
+                  <Link href={'/login'}>Login</Link>
+                </li>
+                <li>
+                  <Link href={'/register'}>Register</Link>
+                </li>
+              </>
             )}
           </ul>
         </nav>
