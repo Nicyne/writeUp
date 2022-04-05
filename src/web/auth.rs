@@ -1,5 +1,6 @@
 //! Contains functions and endpoints revolving around authorisation and authentication
 
+use std::env;
 use std::sync::Mutex;
 use actix_web::{post, delete, HttpResponse, Responder, web, HttpRequest};
 use actix_web::cookie::{CookieBuilder, SameSite};
@@ -11,11 +12,10 @@ use mongodb::Database;
 use crate::db_access::{Credential, CREDENTIALS, DBError, get_dbo_by_id, User, USER};
 use crate::web::error::AuthError;
 use serde::{Serialize, Deserialize};
+use crate::JWT_SECRET_ENV_VAR_KEY;
 use crate::web::auth::json_objects::TokenResponse;
 
 // JWT-Assets
-/// Secret-phrase used to en- and decode JWTs
-const JWT_SECRET: &[u8] = env!("JWT_SECRET").as_bytes(); //TODO secret is static
 /// Time in minutes until a JWT expires
 const JWT_DURATION_MINUTES: i64 = 60;
 /// Name of the cookie carrying the JWT
@@ -175,7 +175,7 @@ fn gen_jwt(uid: &str) -> Result<String, AuthError> {
     let header = Header::new(Algorithm::HS512);
 
     // Generate the JWT
-    encode(&header, &claims, &EncodingKey::from_secret(JWT_SECRET))
+    encode(&header, &claims, &EncodingKey::from_secret(env::var(JWT_SECRET_ENV_VAR_KEY).unwrap().as_bytes()))
         .map_err(|_| AuthError::InternalServerError("jwt-token could not be created".to_string()))
 }
 
@@ -187,7 +187,7 @@ fn gen_jwt(uid: &str) -> Result<String, AuthError> {
 pub fn get_user_id_from_request(req: HttpRequest) -> Result<String, AuthError> { //TODO Make private
     match req.cookie(JWT_TOKEN_COOKIE_NAME) {
         Some(cookie) => decode::<Claims>(cookie.value(),
-                                         &DecodingKey::from_secret(JWT_SECRET),
+                                         &DecodingKey::from_secret(env::var(JWT_SECRET_ENV_VAR_KEY).unwrap().as_bytes()),
                                          &Validation::new(Algorithm::HS512))
             .map(|dec|dec.claims.sub).map_err(|_|AuthError::JWTTokenError),
         None => Err(AuthError::MissingAuthError)

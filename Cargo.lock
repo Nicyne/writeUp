@@ -2039,7 +2039,7 @@ dependencies = [
 
 [[package]]
 name = "writeUp"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -2047,6 +2047,7 @@ dependencies = [
  "futures",
  "jsonwebtoken",
  "mongodb",
+ "rand",
  "serde",
  "serde_json",
  "thiserror",
