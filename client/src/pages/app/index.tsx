@@ -22,6 +22,10 @@ const Home: NextPage = () => {
   const [newTitle, setNewTitle] = useState<string>('');
   const { currentUser, loading } = useContext(UserContext);
 
+  const [shareCode, setShareCode] = useState<string>('');
+  const [addShare, setAddShare] = useState<string>('');
+  const [delShare, setDelShare] = useState<string>('');
+
   const addNoteForm = useRef<HTMLFormElement>(null);
   const inputArea = useRef<HTMLTextAreaElement>(null);
 
@@ -88,6 +92,53 @@ const Home: NextPage = () => {
       <div className="app">
         <div className="sidebar">
           <div className="sidebar-buttons">
+            <button
+              onClick={async (e) => {
+                const token = await dApi.getShareToken();
+                setShareCode(token);
+              }}
+            >
+              Get Share Token
+            </button>
+            <p>{shareCode}</p>
+            <form
+              onSubmit={async (e) => {
+                try {
+                  e.preventDefault();
+                  const res = await dApi.addRelation(addShare);
+                  console.log(res);
+                } catch (error: any) {
+                  console.error(error);
+                }
+              }}
+            >
+              <input
+                type="text"
+                placeholder="Share Token"
+                onChange={({ target }) => setAddShare(target.value)}
+              />
+              <button type="submit" disabled={!addShare}>
+                Create Relation
+              </button>
+            </form>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  const res = await dApi.deleteRelation(delShare);
+                  console.log(res);
+                } catch (error: any) {
+                  console.error(error);
+                }
+              }}
+            >
+              <input
+                type="text"
+                placeholder="userid"
+                onChange={({ target }) => setDelShare(target.value)}
+              />
+              <button type="submit">Delete Relation</button>
+            </form>
             <button onClick={getNotes}>Load Notes</button>
             <button onClick={saveNote} disabled={curNote?.allowance == 'Read'}>
               Save Note

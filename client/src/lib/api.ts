@@ -1,6 +1,11 @@
-import { INote, INoteShallow } from 'types';
+import { INote, INoteShallow, allowance } from 'types';
 
-type endpoints = 'auth' | 'user' | 'note' | 'notes';
+type endpoint = 'auth' | 'user' | 'note' | 'notes' | 'share';
+
+interface IUserAllowance {
+  userId: string;
+  allowance: allowance;
+}
 
 export class Api {
   public readonly baseUrl: string;
@@ -14,7 +19,7 @@ export class Api {
   }
 
   private async requestBuilder(
-    endpoint: endpoints,
+    endpoint: endpoint,
     param?: string,
     options?: RequestInit
   ) {
@@ -136,6 +141,48 @@ export class Api {
     if (!res.ok)
       throw new Error('Could not save note with id: ' + note.note_id);
     return <INote>res.json();
+  }
+
+  public async getShareToken(): Promise<string> {
+    const res = await this.requestBuilder('share');
+    if (!res.ok) throw new Error(res.error);
+    const data = await res.json();
+    return data.code;
+  }
+
+  public async addRelation(token: string) {
+    const res = await this.requestBuilder('share', undefined, {
+      method: 'POST',
+      credentials: 'include',
+      headers: this.contentType,
+      body: JSON.stringify({
+        code: token,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw data.error;
+    return data;
+  }
+
+  public async deleteRelation(userId: string) {
+    const res = await this.requestBuilder('share', userId, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    const data = await res.json();
+    if (!res.ok) throw data.error;
+    return data;
+  }
+
+  public async updateAllowances(nodeId: string, allowances: IUserAllowance[]) {
+    const res = await this.requestBuilder('share', undefined, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: this.contentType,
+      body: JSON.stringify(allowances),
+    });
+    if (!res.ok) throw new Error(res.error);
+    return res.json();
   }
 }
 
