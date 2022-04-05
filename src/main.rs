@@ -38,6 +38,7 @@ mod db_access;
 
 use std::env;
 use std::sync::Mutex;
+use actix_cors::Cors;
 use actix_web::{App, HttpServer};
 use actix_web::web::Data;
 use rand::distributions::Alphanumeric;
@@ -87,10 +88,13 @@ async fn main() -> std::io::Result<()> {
 
     // Start the web-server
     println!("Starting up webserver on port {}", api_port);
-    HttpServer::new(move ||
+    HttpServer::new(move || {
+        let cors = Cors::permissive();
+
         App::new()
+            .wrap(cors)
             .app_data(data.clone())
-            .service(actix_web::web::scope("/api").configure(web::handler_config)))
+            .service(actix_web::web::scope("/api").configure(web::handler_config))})
         .bind(("0.0.0.0", api_port))?
         .run()
         .await
