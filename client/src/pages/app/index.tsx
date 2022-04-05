@@ -42,7 +42,6 @@ const Home: NextPage = () => {
   };
 
   const loadNote = async (e: SyntheticEvent, id: string) => {
-    console.log('called');
     if (curNote) {
       await saveNote(e);
     }
