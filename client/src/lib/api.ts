@@ -8,15 +8,9 @@ interface IUserAllowance {
 }
 
 export class Api {
-  public readonly baseUrl: string;
   private contentType = { 'Content-Type': 'application/json' };
 
-  constructor(url: string) {
-    if (!url) throw new Error('Invalid base URL');
-    if (!url.startsWith('https')) console.warn('Api-Url is not using https.');
-    if (!url.endsWith('/')) url += '/';
-    this.baseUrl = url;
-  }
+  constructor() {}
 
   private async requestBuilder(
     endpoint: endpoint,
@@ -29,7 +23,7 @@ export class Api {
     const requestParam = param ? '/' + param : '';
 
     return new Promise<any>((resolve, reject) => {
-      fetch(this.baseUrl + endpoint + requestParam, requestOptions)
+      fetch('/api/' + endpoint + requestParam, requestOptions)
         .then((res) => resolve(res))
         .catch((err) => reject(err));
     });
@@ -186,5 +180,5 @@ export class Api {
   }
 }
 
-const defaultApi = new Api(process.env.API_URL ?? 'http://localhost:8080/api');
+const defaultApi = new Api();
 export default defaultApi;
