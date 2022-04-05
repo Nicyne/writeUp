@@ -1,5 +1,5 @@
 # -------------------- Build Stage --------------------
-FROM rust:slim-bullseye AS build
+FROM rust:slim-bullseye AS builder
 
 # create a new dummy project
 RUN USER=root cargo new --bin writeUp
@@ -26,7 +26,7 @@ RUN cargo build --release
 FROM debian:bullseye-slim
 
 # copy the build artifact from the build stage
-COPY --from=build /writeUp/target/release/writeUp .
+COPY --from=builder /writeUp/target/release/writeUp .
 
 # init the port with it's default value
 ENV API_PORT=8080

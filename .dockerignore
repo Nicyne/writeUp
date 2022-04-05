@@ -1,5 +1,8 @@
-.git
-.gitignore
+backend.Dockerfile
+.dockerignore
 README.md
 .idea
 target
+client
+.git
+.gitignore

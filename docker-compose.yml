@@ -14,8 +14,11 @@ services:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: example
 
-  writeUp:
-    image: writeup
+  writeUpBackend:
+    build:
+      context: ./
+      dockerfile: ./backend.Dockerfile
+    image: writeup-backend
     restart: unless-stopped
     networks:
       - writeup
@@ -31,4 +34,20 @@ services:
       DB_PASSWD: example
       #JWT_SECRET: secret
       #SHARE_SECRET: otherSecret
+
+  writeUpFront:
+    build:
+      context: ./client
+      dockerfile: ./frontend.Dockerfile
+    image: writeup-frontend
+    restart: unless-stopped
+    networks:
+      - writeup
+    depends_on:
+      - writeUpBackend
+    ports:
+      - "3000:3000"
+    environment:
+      API_URL: "http://localhost:8080/api"
+      #PORT: 3000
 
