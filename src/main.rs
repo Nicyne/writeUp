@@ -22,7 +22,7 @@
 //!     > Starting up writeUp
 //!     > Checking for environment-variables
 //!     > Connecting to Database
-//!     > Starting up webserver
+//!     > Starting up webserver on port XXXX
 //!     ```
 //!
 //! 4. Verify it is running by making a request to `GET /api/system`
@@ -86,12 +86,12 @@ async fn main() -> std::io::Result<()> {
     let data = Data::new(Mutex::new(db.unwrap()));
 
     // Start the web-server
-    println!("Starting up webserver");
+    println!("Starting up webserver on port {}", api_port);
     HttpServer::new(move ||
         App::new()
             .app_data(data.clone())
             .service(actix_web::web::scope("/api").configure(web::handler_config)))
-        .bind(("127.0.0.1", api_port))?
+        .bind(("0.0.0.0", api_port))?
         .run()
         .await
 }

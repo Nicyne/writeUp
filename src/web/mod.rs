@@ -114,8 +114,8 @@ async fn return_system_status() -> impl Responder { //TODO flesh out
         version: String
     }
     return HttpResponse::Ok().json(SystemResponse {
-        application: env::var("CARGO_PKG_NAME").unwrap(),
-        version: env::var("CARGO_PKG_VERSION").unwrap()
+        application: env!("CARGO_PKG_NAME").to_string(),
+        version: env!("CARGO_PKG_VERSION").to_string()
     })
 }
 
