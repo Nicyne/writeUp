@@ -23,7 +23,14 @@ export class Api {
     const requestParam = param ? '/' + param : '';
 
     return new Promise<any>((resolve, reject) => {
-      fetch('/api/' + endpoint + requestParam, requestOptions)
+      const url =
+        window.location.protocol +
+        '//' +
+        window.location.hostname +
+        ':8080/api/'; //TODO Port shouldn't be static
+      console.log(url);
+
+      fetch(url + endpoint + requestParam, requestOptions)
         .then((res) => resolve(res))
         .catch((err) => reject(err));
     });
