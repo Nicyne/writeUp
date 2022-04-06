@@ -35,7 +35,7 @@ services:
       #JWT_SECRET: secret
       #SHARE_SECRET: otherSecret
 
-  writeUpFront:
+  writeUpFrontend:
     build:
       context: ./client
       dockerfile: ./frontend.Dockerfile
