@@ -8,9 +8,16 @@ interface IUserAllowance {
 }
 
 export class Api {
+  private apiUrl = '';
   private contentType = { 'Content-Type': 'application/json' };
 
   constructor() {}
+
+  private async getApiUrl() {
+    return await fetch('/api/url')
+      .then((res) => res.json())
+      .then((res) => res.url);
+  }
 
   private async requestBuilder(
     endpoint: endpoint,
@@ -22,14 +29,11 @@ export class Api {
       : ({ method: 'GET', credentials: 'include' } as RequestInit);
     const requestParam = param ? '/' + param : '';
 
-    return new Promise<any>((resolve, reject) => {
-      const url =
-        window.location.protocol +
-        '//' +
-        window.location.hostname +
-        ':8080/api/'; //TODO Port shouldn't be static
-      console.log(url);
+    let url = this.apiUrl;
+    if (!this.apiUrl) url = await this.getApiUrl();
+    this.apiUrl = url;
 
+    return new Promise<any>((resolve, reject) => {
       fetch(url + endpoint + requestParam, requestOptions)
         .then((res) => resolve(res))
         .catch((err) => reject(err));
