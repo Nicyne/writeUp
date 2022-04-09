@@ -1,0 +1,68 @@
+@import '../mixins';
+@import '../variables';
+
+.landing {
+  background: rgb(2, 0, 36);
+  background: linear-gradient(
+    156deg,
+    rgba(2, 0, 36, 1) 0%,
+    rgba(0, 5, 0, 1) 0%,
+    rgba(0, 5, 5, 1) 100%
+  );
+  padding: 75px 0;
+
+  h1 {
+    font-size: 2rem;
+    font-weight: bold;
+  }
+
+  .text {
+    margin-bottom: 15px;
+
+    p,
+    u {
+      font-size: 1.25rem;
+    }
+  }
+
+  a {
+    @include button;
+  }
+}
+
+.flCenter {
+  @include fl-center;
+}
+
+section.main {
+  margin: 15px 0;
+
+  h2 {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+  }
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  @include card;
+
+  &.two {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+
+    @include phone {
+      grid-row: 1;
+      grid-column: 1;
+    }
+  }
+}

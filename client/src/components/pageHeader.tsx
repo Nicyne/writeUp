@@ -1,3 +1,4 @@
+import styles from 'styles/components/pageHeader.module.scss';
 import { FunctionComponent, SyntheticEvent, useContext } from 'react';
 import { UserContext } from '../context/userContext';
 import Link from 'next/link';
@@ -17,13 +18,13 @@ export const PageHeader: FunctionComponent = () => {
   };
 
   return (
-    <header className="pageHeader">
+    <header className={styles.pageHeader}>
       <div className="container">
         <nav>
-          <div className="logo">
+          <div className={styles.logo}>
             <Link href={'/'}>writeUp!</Link>
           </div>
-          <ul className="navigation">
+          <ul className={styles.navigation}>
             <li>
               <Link href={'/'}>Home</Link>
             </li>
@@ -42,10 +43,10 @@ export const PageHeader: FunctionComponent = () => {
             ) : (
               <>
                 <li>
-                  <Link href={'/login'}>Login</Link>
+                  <Link href={'/auth/login'}>Login</Link>
                 </li>
                 <li>
-                  <Link href={'/register'}>Register</Link>
+                  <Link href={'/auth/register'}>Register</Link>
                 </li>
               </>
             )}
