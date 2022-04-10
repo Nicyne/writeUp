@@ -2,8 +2,8 @@
 
 @mixin container {
   height: 100%;
-  max-width: $max-width;
-  margin: 0 auto;
+  width: min(100%, $max-width);
+  margin-inline: auto;
   padding: 0 10px;
 }
 

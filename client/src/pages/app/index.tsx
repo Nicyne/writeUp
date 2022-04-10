@@ -1,19 +1,14 @@
 import type { NextPage } from 'next';
-import {
-  FunctionComponent,
-  MouseEventHandler,
-  SyntheticEvent,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { SyntheticEvent, useContext, useEffect, useRef, useState } from 'react';
+import { useTimer } from 'react-timer-hook';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
+
+// internal imports
 import type { INote, INoteShallow } from 'types';
 import { CodeBlock } from 'components';
-import { dApi } from 'lib';
+import { dApi, getHash } from 'lib';
 import { UserContext } from 'context';
 
 const closing: Record<string, string> = {
@@ -24,15 +19,37 @@ const closing: Record<string, string> = {
   '"': '"',
 };
 
+function getSeconds(seconds: number): Date {
+  const timestamp = new Date();
+  timestamp.setSeconds(timestamp.getSeconds() + seconds);
+  return timestamp;
+}
+
 const Home: NextPage = () => {
+  const { currentUser, loading } = useContext(UserContext);
+
   const [notes, setNotes] = useState<INoteShallow[]>([]);
   const [curNote, setCurNote] = useState<INote | undefined>(undefined);
   const [newTitle, setNewTitle] = useState<string>('');
-  const { currentUser, loading } = useContext(UserContext);
 
-  const [shareCode, setShareCode] = useState<string>('');
-  const [addShare, setAddShare] = useState<string>('');
-  const [delShare, setDelShare] = useState<string>('');
+  // AUTO SAVE
+  const [noteHash, setNoteHash] = useState<string>('');
+  const time = getSeconds(5);
+  const { pause, restart } = useTimer({
+    expiryTimestamp: time,
+    onExpire: async () => {
+      if (!curNote) {
+        pause();
+        return;
+      }
+      const hash = getHash(curNote.note.content);
+      if (hash === noteHash) {
+        return;
+      }
+      await saveNote();
+    },
+  });
+  // AUTO SAVE
 
   const addNoteForm = useRef<HTMLFormElement>(null);
   const inputArea = useRef<HTMLTextAreaElement>(null);
@@ -50,11 +67,8 @@ const Home: NextPage = () => {
   };
 
   const loadNote = async (e: SyntheticEvent, id: string) => {
-    if (curNote) {
-      await saveNote(e);
-    }
-
     const data = await dApi.getNote(id);
+    setNoteHash(getHash(data.note.content));
     setCurNote(data);
   };
 
@@ -79,7 +93,7 @@ const Home: NextPage = () => {
     inputArea.current?.focus();
   };
 
-  const saveNote = async (e: SyntheticEvent) => {
+  const saveNote = async (e?: SyntheticEvent) => {
     if (!curNote) return;
     if (curNote.allowance == 'Read') return;
     await dApi.updateNote(curNote);
@@ -97,6 +111,7 @@ const Home: NextPage = () => {
   const closeNote = async (e: SyntheticEvent) => {
     await saveNote(e);
     setCurNote(undefined);
+    pause();
   };
 
   const insertElement = (
@@ -114,7 +129,7 @@ const Home: NextPage = () => {
     ].join('');
     inputArea.current.focus();
     cursorPosition = cursorPosition ?? element.length;
-    inputArea.current.selectionEnd = pos + cursorPosition;
+    inputArea.current.selectionStart = pos + cursorPosition;
 
     setCurNote({
       ...curNote,
@@ -251,6 +266,7 @@ const Home: NextPage = () => {
                     content: e.target.value,
                   },
                 });
+                restart(getSeconds(5));
               }}
             />
             <div className="preview">
