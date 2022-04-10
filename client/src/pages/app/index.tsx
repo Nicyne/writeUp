@@ -102,7 +102,7 @@ const Home: NextPage = () => {
 
   const deleteNote = async (e: SyntheticEvent, noteId: string) => {
     e.stopPropagation();
-    if (curNote) setCurNote(undefined);
+    if (curNote?.note_id === noteId) setCurNote(undefined);
 
     await dApi.deleteNote(noteId);
     await getNotes();
