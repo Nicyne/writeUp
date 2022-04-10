@@ -107,24 +107,25 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
 /// => 200
 ///     {
 ///         "application": "writeUp",
-///         "version": "0.1.0"
+///         "version": "0.4.1",
+///         "db": {
+///             "type": "mongo",
+///             "version": 1.0
+///         },
+///         "time": "2022-04-10 16:49:12"
 ///     }
 /// ```
 #[get("/system")]
-async fn return_system_status() -> impl Responder { //TODO flesh out
-    // Define Response-Object
-    /// Response-body containing information on the system currently running
-    #[derive(Serialize)]
-    struct SystemResponse {
-        /// The name of the application currently running
-        application: String,
-        /// The version of the application currently running
-        version: String
-    }
-    return HttpResponse::Ok().json(SystemResponse {
-        application: env!("CARGO_PKG_NAME").to_string(),
-        version: env!("CARGO_PKG_VERSION").to_string()
-    })
+async fn return_system_status() -> impl Responder {
+    return HttpResponse::Ok().json(doc! {
+        "application": env!("CARGO_PKG_NAME").to_string(),
+        "version": env!("CARGO_PKG_VERSION").to_string(),
+        "db": {
+            "type": "mongo", //TODO Read from env-var
+            "version": "1.0"
+        },
+        "time": chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
+    });
 }
 
 /// ENDPOINT: Compiles a list of all notes the current user has access to.
