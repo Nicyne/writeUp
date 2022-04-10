@@ -27,6 +27,8 @@
 //!     * `POST /share`             - Use an invite code to create a relation between two user [[`create_relation`](share::create_relation)]
 //!     * `DELETE /share/{user_id}` - Remove the relation between two user [[`remove_relation`](share::remove_relation)]
 //!     * `PUT /share/{note_id}`    - Update other users access-rights regarding the note [[`update_allowances`](share::update_allowances)]
+//!
+//! For a list of Error-Responses have a look at [[`error`](error)]
 
 mod note;
 mod user;
@@ -38,10 +40,16 @@ use std::env;
 use std::sync::Mutex;
 use serde::Serialize;
 use actix_web::{get, HttpRequest, HttpResponse, Responder, web::{ServiceConfig, Data}};
+use actix_web::error::JsonPayloadError;
 use mongodb::{bson::doc, Database};
 use crate::db_access::{AllowanceLevel, DBError, get_dbo_by_id, Note, NOTES};
 use crate::web::auth::get_user_from_request;
-use crate::web::error::AuthError;
+use crate::web::error::APIError;
+
+/// Converts web-server internal json-conversion-error to one conforming to the rest of the responses
+pub fn json_error_handler(err:JsonPayloadError, _req: &HttpRequest) -> actix_web::error::Error {
+    actix_web::error::InternalError::from_response(err, error::APIError::InvalidPayloadError.gen_response()).into()
+}
 
 /// Configures the web-server to add all endpoints
 ///
@@ -122,9 +130,12 @@ async fn return_system_status() -> impl Responder { //TODO flesh out
 /// ENDPOINT: Compiles a list of all notes the current user has access to.
 ///
 /// Returns one of the following HttpResponses:
-/// * `200` [Body: JSON] - List could be compiled
-/// * `401` - No user could be verified
-/// * `500` - Something went wrong internally (debug)
+/// * `200`
+///     - \[Body: JSON\] List could be compiled
+/// * `401`
+///     - **\[10\]** No user could be verified
+/// * `500`
+///     - Something went wrong internally (debug)
 ///
 /// # Arguments
 ///
@@ -160,7 +171,11 @@ async fn return_system_status() -> impl Responder { //TODO flesh out
 /// ```text
 /// GET-Request at `{api-url}/notes` without a cookie containing a JWT
 /// => 401
-///     "token-cookie was not found"
+///     {
+///         "success": false,
+///         "code": 10,
+///         "message": "user is not logged in"
+///     }
 /// ```
 #[get("/notes")]
 async fn list_notes(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
@@ -189,9 +204,8 @@ async fn list_notes(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Respond
                         tags: note.tags,
                         allowance: allowance.level
                     }),
-                    Err(DBError::NoDocumentFoundError) => return AuthError::InternalServerError(
-                        format!("reference to deleted note(ID:{}) still exists in user-allowances",
-                                allowance.note_id)).gen_response(), //user has allowance for a nonexisting note
+                    Err(DBError::NoDocumentFoundError) => return APIError::DBInconsistencyError(
+                                user._id, allowance.note_id).gen_response(), //user has allowance for a nonexisting note
                     Err(_) => {} //unknown
                 }
             }

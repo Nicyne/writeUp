@@ -10,7 +10,7 @@ use crate::db_access::{Credential, CREDENTIALS, del_dbo_by_id, get_dbo_by_id, in
 use crate::db_access::AllowanceLevel::Owner;
 use crate::db_access::DBError::{NoDocumentFoundError, QueryError};
 use crate::web::auth::{get_user_from_request, get_user_id_from_request, JWT_TOKEN_COOKIE_NAME};
-use crate::web::error::AuthError::InternalServerError;
+use crate::web::error::APIError;
 use crate::web::user::json_objects::{UserRequest, UserResponse};
 
 // Response-/Request-Objects
@@ -40,8 +40,14 @@ mod json_objects {
 /// ENDPOINT: Creates a new user with the given credentials
 ///
 /// Returns one of the following HttpResponses:
-/// * `200` [Body: JSON] - User was successfully created
-/// * `500` - Something went wrong internally (debug)
+/// * `201`
+///     - \[Body: JSON\] User was successfully created
+/// * `200`
+///     - **\[11\]** Username already exists in the database
+/// * `403`
+///     - **\[12\]** User is currently logged in
+/// * `500`
+///     - Something went wrong internally (debug)
 ///
 /// # Arguments
 ///
@@ -57,17 +63,43 @@ mod json_objects {
 ///         "username": "otherUser",
 ///         "passwd": "otherPass"
 ///     }
-/// => 200
+/// => 201
 ///     {
 ///         "username": "otherUser",
 ///         "relations": []
+///     }
+/// ```
+/// ```text
+/// POST-Request at `{api-url}/user` with no token-cookie (username already exists in db)
+///     {
+///         "username": "testUser",
+///         "passwd": "otherPass"
+///     }
+/// => 200
+///     {
+///         "success": false,
+///         "code": 11,
+///         "message": "failed to process credentials: username already exists"
+///     }
+/// ```
+/// ```text
+/// POST-Request at `{api-url}/user` with a valid token-cookie
+///     {
+///         "username": "otherUser",
+///         "passwd": "otherPass"
+///     }
+/// => 403
+///     {
+///         "success": false,
+///         "code": 12,
+///         "message": "no permission"
 ///     }
 /// ```
 #[post("/user")]
 pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db: Data<Mutex<Database>>) -> impl Responder {
     // Check if still logged in
     if get_user_id_from_request(req).is_ok() { //TODO? necessary to be logged out?
-        return InternalServerError("Still logged in".to_string()).gen_response() //TODO Review error-types
+        return APIError::NoPermissionError.gen_response()
     }
     let new_user = user_req.into_inner();
     // Check for unique username
@@ -83,21 +115,24 @@ pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db: Da
 
             // Check for error
             if add_cred.await.is_err() || add_user.await.is_err() {
-                return InternalServerError("Could not create user".to_string()).gen_response()
+                return APIError::QueryError("user/credentials could not be created".to_string()).gen_response()
             }
-            HttpResponse::Ok().json(UserResponse {username: user._id.clone(), relations: user.connections.clone()}) //TODO? login afterwards?
+            HttpResponse::Created().json(UserResponse {username: user._id.clone(), relations: user.connections.clone()}) //TODO? login afterwards?
         }
-        Ok(_) => InternalServerError("User already exists".to_string()).gen_response(), //TODO Review error-types
-        Err(_) => InternalServerError("Something went wrong when verifying username".to_string()).gen_response() //TODO Review error-types
+        Ok(_) => APIError::InvalidCredentialsError("username already exists".to_string()).gen_response(),
+        Err(_) => APIError::QueryError("username could not be checked on uniqueness".to_string()).gen_response()
     }
 }
 
 /// ENDPOINT: Returns the currently logged in users data
 ///
 /// Returns one of the following HttpResponses:
-/// * `200` [Body: JSON] - Credentials could be verified
-/// * `401` - Missing or invalid JWT
-/// * `500` - Something went wrong internally (debug)
+/// * `200`
+///     - \[Body: JSON\] Credentials could be verified
+/// * `401`
+///     - **\[10\]** Missing or invalid JWT
+/// * `500`
+///     - Something went wrong internally (debug)
 ///
 /// # Arguments
 ///
@@ -118,7 +153,9 @@ pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db: Da
 /// GET-Request at `{api-url}/user` without a cookie containing a JWT
 /// => 401
 ///     {
-///         "error": "token-cookie was not found"
+///         "success": false,
+///         "code": 10,
+///         "message": "user is not logged in"
 ///     }
 /// ```
 #[get("/user")]
@@ -132,9 +169,12 @@ pub async fn get_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Respo
 /// ENDPOINT: Removes a user from the database and logs them out
 ///
 /// Returns one of the following HttpResponses:
-/// * `200` - User was removed successfully
-/// * `401` - Missing or invalid JWT
-/// * `500` - Something went wrong internally (debug)
+/// * `200`
+///     - User was removed successfully
+/// * `401`
+///     - Missing or invalid JWT
+/// * `500`
+///     - Something went wrong internally (debug)
 ///
 /// # Arguments
 ///
@@ -154,7 +194,9 @@ pub async fn get_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Respo
 /// DELETE-Request at `{api-url}/user` without a cookie containing a JWT
 /// => 401
 ///     {
-///         "error": "token-cookie was not found"
+///         "success": false,
+///         "code": 10,
+///         "message": "user is not logged in"
 ///     }
 /// ```
 #[allow(unused_must_use)]
@@ -181,7 +223,7 @@ pub async fn remove_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Re
             }
             // Check for missed notes/allowances
             if !note_deletion_error.is_empty() {
-                return InternalServerError("Could not delete all notes or allowances".to_string()).gen_response() //TODO Review error-types
+                return APIError::QueryError("notes and allowances could not be fully removed".to_string()).gen_response()
             }
 
             // Remove all Relations with other user
@@ -195,7 +237,7 @@ pub async fn remove_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Re
             }
             // Check for missed relations
             if !connection_deletion_error.is_empty() {
-                return InternalServerError("Could not remove all relations to other user".to_string()).gen_response() //TODO Review error-types
+                return APIError::QueryError("relations to other user could not be fully removed".to_string()).gen_response()
             }
 
             // Remove the user and his credentials
@@ -204,7 +246,7 @@ pub async fn remove_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Re
             let cred_removal = del_dbo_by_id::<Credential>(CREDENTIALS,
                                                            user._id.clone(), &db);
             if user_removal.await.is_err() || cred_removal.await.is_err() {
-                return InternalServerError("Could not delete user or credentials".to_string()).gen_response() //TODO Review error-types
+                return APIError::QueryError("user and/or credentials could not be removed".to_string()).gen_response()
             }
 
             // Log the user out

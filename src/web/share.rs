@@ -13,7 +13,7 @@ use crate::db_access::{update_dbo_by_id, USER, User, filter_allowances_by_user_i
 use crate::db_access::{AllowanceLevel::Forbidden, DBError::QueryError};
 use crate::SHARE_SECRET_ENV_VAR_KEY;
 use crate::web::{auth::get_user_from_request, note::get_allow_level_for_note};
-use crate::web::error::{AuthError, AuthError::InternalServerError};
+use crate::web::error::APIError;
 use crate::web::share::json_objects::{InviteBody, RelationResponse, ShareRequest, SuccessResponse};
 
 // Invite-Assets
@@ -67,9 +67,12 @@ mod json_objects {
 /// ENDPOINT: Creates an invitation code to allow the connection of two user
 ///
 /// Returns one of the following HttpResponses:
-/// * `200` - Code has been created and is being returned
-/// * `401` - Missing or invalid JWT
-/// * `500` - Something went wrong internally (debug)
+/// * `200`
+///     - Code has been created and is being returned
+/// * `401`
+///     - **\[10\]** Missing or invalid JWT
+/// * `500`
+///     - Something went wrong internally (debug)
 ///
 /// # Arguments
 ///
@@ -88,7 +91,11 @@ mod json_objects {
 /// ```text
 /// GET-Request at `{api-url}/share` without a cookie containing a JWT
 /// => 401
-///     "token-cookie was not found"
+///     {
+///         "success": false,
+///         "code": 10,
+///         "message": "user is not logged in"
+///     }
 /// ```
 #[get("/share")]
 pub async fn get_relation_code(req: HttpRequest, db:Data<Mutex<Database>>) -> impl Responder {
@@ -106,9 +113,14 @@ pub async fn get_relation_code(req: HttpRequest, db:Data<Mutex<Database>>) -> im
 /// ENDPOINT: Attempts to create a relation between two user with an invite-code
 ///
 /// Returns one of the following HttpResponses:
-/// * `200` [Body: JSON] - Relation could be established
-/// * `401` - Missing or invalid JWT / Invalid invitation-code
-/// * `500` - Something went wrong internally (debug)
+/// * `200`
+///     - \[Body: JSON\] Relation could be established
+///     - **\[24\]** Invalid instruction (invite code has been issued by the user, connection already exists)
+///     - **\[27\]** Invalid invitation-code
+/// * `401`
+///     - **\[10\]** Missing or invalid JWT
+/// * `500`
+///     - Something went wrong internally (debug)
 ///
 /// # Arguments
 ///
@@ -129,20 +141,40 @@ pub async fn get_relation_code(req: HttpRequest, db:Data<Mutex<Database>>) -> im
 ///     }
 /// ```
 /// ```text
-/// POST-Request at `{api-url}/share` without a cookie containing a JWT
+/// POST-Request at `{api-url}/share` with a cookie containing a valid JWT [invite-code was issued by the user]
 ///     {
 ///         "code": "opH6eXAbVbJFR3QiDFQhbGciOiGTUzI1NiJ9.eyJggRLiOiJ5RLKM2IiwiZXhwIjoxNjQ4NzE5MTEzfQ.CUIReWW7JAj8q7cnJx93ofcsyrWfJh5VLJAj57vEwe4Q"
 ///     }
-/// => 401
-///     "token-cookie was not found"
+/// => 200
+///     {
+///         "success": false,
+///         "code": 24,
+///         "message": "invalid instruction: user can't connect with themselves"
+///     }
 /// ```
 /// ```text
 /// POST-Request at `{api-url}/share` with a cookie containing a valid JWT [invite-code is expired]
 ///     {
 ///         "code": "opH6eXAbVbJFR3QiDFQhbGciOiGTUzI1NiJ9.eyJggRLiOiJ5RLKM2IiwiZXhwIjoxNjQ4NzE5MTEzfQ.CUIReWW7JAj8q7cnJx93ofcsyrWfJh5VLJAj57vEwe4Q"
 ///     }
+/// => 200
+///     {
+///         "success": false,
+///         "code": 27,
+///         "message": "invite is not valid (anymore)"
+///     }
+/// ```
+/// ```text
+/// POST-Request at `{api-url}/share` without a cookie containing a JWT
+///     {
+///         "code": "opH6eXAbVbJFR3QiDFQhbGciOiGTUzI1NiJ9.eyJggRLiOiJ5RLKM2IiwiZXhwIjoxNjQ4NzE5MTEzfQ.CUIReWW7JAj8q7cnJx93ofcsyrWfJh5VLJAj57vEwe4Q"
+///     }
 /// => 401
-///     "token-cookie was not found"
+///     {
+///         "success": false,
+///         "code": 10,
+///         "message": "user is not logged in"
+///     }
 /// ```
 #[post("/share")]
 pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, db: Data<Mutex<Database>>) -> impl Responder {
@@ -150,9 +182,12 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
         Ok(user) => {
             match get_user_id_from_invite_code(&code_req.code) {
                 Ok(invite_user_id) => {
+                    if invite_user_id.eq(&user._id) {
+                        return APIError::InvalidInstructionsError("user can't connect with themselves".to_string()).gen_response()
+                    }
                     // Simple (non exhaustive) check for an already existing connection between users
-                    if invite_user_id.eq(&user._id) || user.connections.contains(&invite_user_id) {
-                        return InternalServerError("User already share a connection".to_string()).gen_response() //TODO Review error-types
+                    if user.connections.contains(&invite_user_id) {
+                        return APIError::InvalidInstructionsError("user already share a connection".to_string()).gen_response()
                     }
 
                     // Add each user to the others relation-list
@@ -167,7 +202,7 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
 
                     // Wait for the queries to finish and check for an error
                     if update_curr_user.await.is_err() || update_invite_user.await.is_err() {
-                        return InternalServerError("Relation could not be established".to_string()).gen_response()
+                        return APIError::QueryError("relation could not be established".to_string()).gen_response()
                     }
                     HttpResponse::Ok().json(RelationResponse { user_id: invite_user_id})
                 }
@@ -181,9 +216,15 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
 /// ENDPOINT: Removes a relation between two user
 ///
 /// Returns one of the following HttpResponses:
-/// * `200` - Relation has been successfully removed
-/// * `401` - Missing or invalid JWT
-/// * `500` - Something went wrong internally (debug)
+/// * `200`
+///     - Relation has been successfully removed
+///     - **\[24\]** Invalid instruction (user tries to sever connection to themselves, connection doesn't exist)
+/// * `400`
+///     - **\[21\]** id contains invalid symbols
+/// * `401`
+///     - **\[10\]** Missing or invalid JWT
+/// * `500`
+///     - Something went wrong internally (debug)
 ///
 /// # Arguments
 ///
@@ -201,10 +242,30 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
 ///     }
 /// ```
 /// ```text
+/// DELETE-Request at `{api-url}/share/testUser` with a cookie containing a valid JWT [testUser is not connected to this user]
+/// => 200
+///     {
+///         "success": false,
+///         "code": 24,
+///         "message": "invalid instruction: user don't share a connection"
+///     }
+/// ```
+/// ```text
+/// DELETE-Request at `{api-url}/share/te}$t:User` with a cookie containing a JWT
+/// => 400
+///     {
+///         "success": false,
+///         "code": 21,
+///         "message": "requested id contains forbidden character"
+///     }
+/// ```
+/// ```text
 /// DELETE-Request at `{api-url}/share/testUser` without a cookie containing a JWT
 /// => 401
 ///     {
-///         "error": "token-cookie was not found"
+///         "success": false,
+///         "code": 10,
+///         "message": "user is not logged in"
 ///     }
 /// ```
 #[delete("/share/{user_id}")]
@@ -212,13 +273,16 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, db: Data<Mute
     let related_user = path.into_inner();
     // Check for potential injection-attempt
     if !is_safe(&related_user) {
-        return InternalServerError("User-ID contains forbidden characters".to_string()).gen_response() //TODO Review error-types
+        return APIError::InvalidIDError.gen_response()
     }
     match get_user_from_request(req, &db).await {
         Ok(user) => {
+            if user._id.eq(&related_user) {
+                return APIError::InvalidInstructionsError("user can't remove connection to themselves".to_string()).gen_response()
+            }
             // Simple (non exhaustive) check for an already existing connection between users
-            if user._id.eq(&related_user) || !user.connections.contains(&related_user) {
-                return InternalServerError("User don't share a connection".to_string()).gen_response() //TODO Review error-types
+            if !user.connections.contains(&related_user) {
+                return APIError::InvalidInstructionsError("user don't share a connection".to_string()).gen_response()
             }
 
             // Compile all notes that have been shared between both user
@@ -255,7 +319,7 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, db: Data<Mute
                 }
             }
             if !error.is_empty() {
-                return InternalServerError("Incomplete removal of relation and shares".to_string()).gen_response()
+                return APIError::QueryError("relation or shares could not be fully removed".to_string()).gen_response()
             }
             HttpResponse::Ok().json(SuccessResponse { success: true })
         }
@@ -266,10 +330,16 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, db: Data<Mute
 /// ENDPOINT: Takes a list of allowed users and their allowed level of access and updates them accordingly
 ///
 /// Returns one of the following HttpResponses:
-/// * `200` [Body: JSON] - All Shares have been updated
-/// * `401` - Missing or invalid JWT
-/// * `403` - Insufficient access-level (not owner)
-/// * `500` - Something went wrong internally (debug)
+/// * `200`
+///     - \[Body: JSON\] All Shares have been updated
+/// * `400`
+///     - **\[21\]** id contains invalid symbols
+/// * `401`
+///     - **\[10\]** Missing or invalid JWT
+/// * `403`
+///     - **\[12\]** Insufficient access-level (not owner)
+/// * `500`
+///     - Something went wrong internally (debug)
 ///
 /// # Arguments
 ///
@@ -298,6 +368,25 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, db: Data<Mute
 ///     }
 /// ```
 /// ```text
+/// PUT-Request at `{api-url}/share/72}4fa97$b62u3:2dr4d3l` with a cookie containing a JWT
+///     [
+///         {
+///             "user_id": "testUser",
+///             "allowance": "ReadWrite"
+///         },
+///         {
+///             "user_id": "otherUser",
+///             "allowance": "Forbidden"
+///         }
+///     ]
+/// => 400
+///     {
+///         "success": false,
+///         "code": 21,
+///         "message": "requested id contains forbidden character"
+///     }
+/// ```
+/// ```text
 /// PUT-Request at `{api-url}/share/7254fa970b62u3ag62dr4d3l` without a cookie containing a JWT
 ///     [
 ///         {
@@ -311,7 +400,9 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, db: Data<Mute
 ///     ]
 /// => 401
 ///     {
-///         "error": "token-cookie was not found"
+///         "success": false,
+///         "code": 10,
+///         "message": "user is not logged in"
 ///     }
 /// ```
 /// ```text
@@ -328,7 +419,9 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, db: Data<Mute
 ///     ]
 /// => 403
 ///     {
-///         "error": "no permission"
+///         "success": false,
+///         "code": 12,
+///         "message": "no permission"
 ///     }
 /// ```
 #[put("/share/{note_id}")]
@@ -336,7 +429,7 @@ pub async fn update_allowances(path: Path<String>, req: HttpRequest, allow_req: 
     let note_id = path.into_inner();
     // Check for potential injection-attempt
     if !is_safe(&note_id) {
-        return InternalServerError("Note-ID contains forbidden characters".to_string()).gen_response() //TODO Review error-types
+        return APIError::InvalidIDError.gen_response()
     }
     match get_allow_level_for_note(&note_id, req.clone(), &db).await {
         Ok(AllowanceLevel::Owner) => { // Sharing of a note is only allowed to the owner of said note
@@ -385,11 +478,11 @@ pub async fn update_allowances(path: Path<String>, req: HttpRequest, allow_req: 
             }
             // Check for a failed query
             if !errors.is_empty() { //TODO Create an error report and return it
-                return InternalServerError("Failed to update all allowances".to_string()).gen_response() //TODO Review error-types
+                return APIError::QueryError("not all allowances were updated".to_string()).gen_response()
             }
             HttpResponse::Ok().json(SuccessResponse { success: true })
         }
-        Ok(_) =>  AuthError::NoPermissionError.gen_response(), // Not owner of the note
+        Ok(_) =>  APIError::NoPermissionError.gen_response(), // Not owner of the note
         Err(e) => e.gen_response() // unknown
     }
 }
@@ -399,7 +492,7 @@ pub async fn update_allowances(path: Path<String>, req: HttpRequest, allow_req: 
 /// # Arguments
 ///
 /// * `uid` - The username to save
-fn gen_invite(uid: &str) -> Result<String, AuthError> {
+fn gen_invite(uid: &str) -> Result<String, APIError> {
     // Set all required values
     let expiration = Utc::now()
         .checked_add_signed(chrono::Duration::minutes(INVITE_DURATION_MINUTES))
@@ -413,7 +506,7 @@ fn gen_invite(uid: &str) -> Result<String, AuthError> {
 
     // Generate the invite
     encode(&header, &claims, &EncodingKey::from_secret(env::var(SHARE_SECRET_ENV_VAR_KEY).unwrap().as_bytes()))
-        .map_err(|_| AuthError::InternalServerError("invite-code could not be created".to_string()))
+        .map_err(|_| APIError::InternalServerError("invite-code-creation failed".to_string()))
 }
 
 /// Retrieves the username of the inviting user from the invite-code
@@ -421,9 +514,9 @@ fn gen_invite(uid: &str) -> Result<String, AuthError> {
 /// # Arguments
 ///
 /// * `code` - Invite-code to be verified
-fn get_user_id_from_invite_code(code: &String) -> Result<String, AuthError> {
+fn get_user_id_from_invite_code(code: &String) -> Result<String, APIError> {
     decode::<Claims>(&code,
                      &DecodingKey::from_secret(env::var(SHARE_SECRET_ENV_VAR_KEY).unwrap().as_bytes()),
                      &Validation::new(Algorithm::HS256))
-        .map(|dec|dec.claims.sub).map_err(|_|AuthError::JWTTokenError) //TODO Review error-types
+        .map(|dec|dec.claims.sub).map_err(|_| APIError::InvalidInviteError)
 }

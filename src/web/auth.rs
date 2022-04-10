@@ -3,17 +3,15 @@
 use std::env;
 use std::sync::Mutex;
 use actix_web::{post, delete, HttpResponse, Responder, web, HttpRequest};
-use actix_web::cookie::{CookieBuilder, SameSite};
-use actix_web::cookie::time::Duration;
+use actix_web::cookie::{CookieBuilder, SameSite, time::Duration};
 use actix_web::web::Data;
 use chrono::Utc;
 use jsonwebtoken::{Algorithm, decode, DecodingKey, encode, EncodingKey, Header, Validation};
 use mongodb::Database;
 use crate::db_access::{Credential, CREDENTIALS, DBError, get_dbo_by_id, User, USER};
-use crate::web::error::AuthError;
+use crate::web::{error::APIError, auth::json_objects::TokenResponse};
 use serde::{Serialize, Deserialize};
 use crate::JWT_SECRET_ENV_VAR_KEY;
-use crate::web::auth::json_objects::TokenResponse;
 
 // JWT-Assets
 /// Time in minutes until a JWT expires
@@ -55,9 +53,11 @@ mod json_objects {
 /// ENDPOINT: Takes a set of credentials, verifies them and sets a JWT-cookie as proof
 ///
 /// Returns one of the following HttpResponses:
-/// * `200` [COOKIE: JWT] - Credentials could be verified
-/// * `401` - Wrong Credentials
-/// * `500` - Something went wrong internally (debug)
+/// * `200`
+///     - \[COOKIE: JWT\] Credentials could be verified
+///     - **\[11\]** Credentials are incorrect
+/// * `500`
+///     - Something went wrong internally (debug)
 ///
 /// # Arguments
 ///
@@ -67,7 +67,7 @@ mod json_objects {
 /// # Examples
 ///
 /// ```text
-/// POST-Request at `{api-url}/auth`
+/// POST-Request at `{api-url}/auth` (valid credentials)
 ///     {
 ///         "username": "testUser",
 ///         "passwd": "testPass"
@@ -78,13 +78,17 @@ mod json_objects {
 ///     }
 /// ```
 /// ```text
-/// POST-Request at `{api-url}/auth`
+/// POST-Request at `{api-url}/auth` (invalid credentials)
 ///     {
 ///         "username": "testUser",
 ///         "passwd": "passTest"
 ///     }
-/// => 401
-///     "wrong credentials"
+/// => 200
+///     {
+///         "success": false,
+///         "code": 11,
+///         "message": "failed to process credentials: wrong credentials"
+///     }
 /// ```
 #[post("/auth")]
 pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objects::TokenRequest>) -> impl Responder { //TODO Secure credentials
@@ -102,23 +106,26 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
                             .max_age(Duration::minutes(JWT_DURATION_MINUTES))
                             .http_only(true).finish(); //TODO Secure Cookie
                         let mut response = HttpResponse::Ok().json(json_objects::TokenResponse {success: true});
-                        if response.add_cookie(&token_cookie).is_err() {return AuthError::InternalServerError("failed to set cookie".to_string()).gen_response()} //Cookie couldn't be parsed
+                        if response.add_cookie(&token_cookie).is_err() {
+                            return APIError::InternalServerError("failed to set authentication-cookie".to_string()).gen_response()} //Cookie couldn't be parsed
                         response
                     }
                     Err(e) => e.gen_response()
                 }
-            } else { AuthError::WrongCredentialsError.gen_response() } //wrong password
+            } else { APIError::InvalidCredentialsError("wrong credentials".to_string()).gen_response() } //wrong password
         }
-        Err(DBError::NoDocumentFoundError) => AuthError::InvalidUserError.gen_response(), //No user with that username has been found
-        Err(_) => AuthError::InternalServerError("failed to access credentials".to_string()).gen_response() //Unknown
+        Err(DBError::NoDocumentFoundError) => APIError::InvalidCredentialsError("wrong credentials".to_string()).gen_response(), //No user with that username has been found
+        Err(_) => APIError::QueryError("can not access credentials".to_string()).gen_response() //Unknown
     }
 }
 
 /// ENDPOINT: Removes all verification from the client to effectively log them out
 ///
 /// Returns one of the following HttpResponses:
-/// * `200` [REMOVAL_COOKIE: JWT] - Valid JWT-cookie found
-/// * `401` - No or invalid JWT-cookie found
+/// * `200`
+///     - \[REMOVAL_COOKIE: JWT\] Valid JWT-cookie found
+/// * `401`
+///     - **\[10\]** No or invalid JWT-cookie found
 ///
 /// # Arguments
 ///
@@ -134,14 +141,13 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
 ///     }
 /// ```
 /// ```text
-/// DELETE-Request at `{api-url}/auth` without a cookie containing a JWT
+/// DELETE-Request at `{api-url}/auth` without a valid cookie containing a JWT
 /// => 401
-///     "token-cookie was not found"
-/// ```
-/// ```text
-/// DELETE-Request at `{api-url}/auth` with a cookie containing an invalid JWT
-/// => 401
-///     "jwt token not valid"
+///     {
+///         "success": false,
+///         "code": 10,
+///         "message": "user is not logged in"
+///     }
 /// ```
 #[allow(unused_must_use)]
 #[delete("/auth")]
@@ -162,7 +168,7 @@ pub async fn logout(req: HttpRequest) -> impl Responder {
 /// # Arguments
 ///
 /// * `uid` - The username to save
-fn gen_jwt(uid: &str) -> Result<String, AuthError> {
+fn gen_jwt(uid: &str) -> Result<String, APIError> {
     // Set all required values
     let expiration = Utc::now()
         .checked_add_signed(chrono::Duration::minutes(JWT_DURATION_MINUTES))
@@ -176,7 +182,7 @@ fn gen_jwt(uid: &str) -> Result<String, AuthError> {
 
     // Generate the JWT
     encode(&header, &claims, &EncodingKey::from_secret(env::var(JWT_SECRET_ENV_VAR_KEY).unwrap().as_bytes()))
-        .map_err(|_| AuthError::InternalServerError("jwt-token could not be created".to_string()))
+        .map_err(|_| APIError::InternalServerError("jwt-token creation failed".to_string()))
 }
 
 /// Retrieves the username of the current user using the JWT-cookie in a HttpRequest
@@ -184,13 +190,13 @@ fn gen_jwt(uid: &str) -> Result<String, AuthError> {
 /// # Arguments
 ///
 /// * `req` - HttpRequest from which the cookie and therefore the JWT gets extracted
-pub fn get_user_id_from_request(req: HttpRequest) -> Result<String, AuthError> { //TODO Make private
+pub fn get_user_id_from_request(req: HttpRequest) -> Result<String, APIError> { //TODO Make private
     match req.cookie(JWT_TOKEN_COOKIE_NAME) {
         Some(cookie) => decode::<Claims>(cookie.value(),
                                          &DecodingKey::from_secret(env::var(JWT_SECRET_ENV_VAR_KEY).unwrap().as_bytes()),
                                          &Validation::new(Algorithm::HS512))
-            .map(|dec|dec.claims.sub).map_err(|_|AuthError::JWTTokenError),
-        None => Err(AuthError::MissingAuthError)
+            .map(|dec|dec.claims.sub).map_err(|_|APIError::AuthenticationError), // Invalid JWT
+        None => Err(APIError::AuthenticationError) // No JWT-cookie
     }
 }
 
@@ -201,15 +207,15 @@ pub fn get_user_id_from_request(req: HttpRequest) -> Result<String, AuthError> {
 ///
 /// * `req` - HttpRequest from which the cookie and therefore the JWT gets extracted
 /// * `db` - Reference to a Mutex-secured Database-connection
-pub async fn get_user_from_request(req: HttpRequest, db: &Mutex<Database>) -> Result<User,AuthError> {
+pub async fn get_user_from_request(req: HttpRequest, db: &Mutex<Database>) -> Result<User,APIError> {
     // Verify jwt
     match get_user_id_from_request(req) {
         Ok(user_id) => {
             // Extract the user
             match get_dbo_by_id::<User>(USER, user_id, db).await {
                 Ok(user) => Ok(user),
-                Err(DBError::NoDocumentFoundError) => Err(AuthError::InvalidUserError),
-                Err(_) => Err(AuthError::InternalServerError("could not retrieve user from database".to_string()))
+                Err(DBError::NoDocumentFoundError) => Err(APIError::AuthenticationError),
+                Err(_) => Err(APIError::QueryError("user could not be retrieved from database".to_string()))
             }
         }
         Err(e) => Err(e)
