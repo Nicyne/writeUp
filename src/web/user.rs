@@ -11,6 +11,7 @@ use crate::db_access::AllowanceLevel::Owner;
 use crate::db_access::DBError::{NoDocumentFoundError, QueryError};
 use crate::web::auth::{get_user_from_request, get_user_id_from_request, JWT_TOKEN_COOKIE_NAME};
 use crate::web::error::APIError;
+use crate::web::{ResponseObject, ResponseObjectWithPayload};
 use crate::web::user::json_objects::{UserRequest, UserResponse};
 
 // Response-/Request-Objects
@@ -65,8 +66,12 @@ mod json_objects {
 ///     }
 /// => 201
 ///     {
-///         "username": "otherUser",
-///         "relations": []
+///         "success": true,
+///         "content": {
+///             "username": "otherUser",
+///             "relations": []
+///         },
+///         "time": "2022-04-11 12:20:28"
 ///     }
 /// ```
 /// ```text
@@ -79,7 +84,8 @@ mod json_objects {
 ///     {
 ///         "success": false,
 ///         "code": 11,
-///         "message": "failed to process credentials: username already exists"
+///         "message": "failed to process credentials: username already exists",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 /// ```text
@@ -92,7 +98,8 @@ mod json_objects {
 ///     {
 ///         "success": false,
 ///         "code": 12,
-///         "message": "no permission"
+///         "message": "no permission",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 #[post("/user")]
@@ -117,7 +124,7 @@ pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db: Da
             if add_cred.await.is_err() || add_user.await.is_err() {
                 return APIError::QueryError("user/credentials could not be created".to_string()).gen_response()
             }
-            HttpResponse::Created().json(UserResponse {username: user._id.clone(), relations: user.connections.clone()}) //TODO? login afterwards?
+            HttpResponse::Created().json(ResponseObjectWithPayload::new(UserResponse {username: user._id.clone(), relations: user.connections.clone()})) //TODO? login afterwards?
         }
         Ok(_) => APIError::InvalidCredentialsError("username already exists".to_string()).gen_response(),
         Err(_) => APIError::QueryError("username could not be checked on uniqueness".to_string()).gen_response()
@@ -145,8 +152,12 @@ pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db: Da
 /// GET-Request at `{api-url}/user` with a cookie containing a valid JWT
 /// => 200 [cookie with JWT is set]
 ///     {
-///         "username": "testUser",
-///         "relations": ["otherUser", "yetAnotherUser"]
+///         "success": true,
+///         "content": {
+///             "username": "testUser",
+///             "relations": ["otherUser", "yetAnotherUser"]
+///         },
+///         "time": "2022-04-11 12:20:28"
 ///     }
 /// ```
 /// ```text
@@ -155,13 +166,15 @@ pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db: Da
 ///     {
 ///         "success": false,
 ///         "code": 10,
-///         "message": "user is not logged in"
+///         "message": "user is not logged in",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 #[get("/user")]
 pub async fn get_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
     match get_user_from_request(req, &db).await {
-        Ok(user) => HttpResponse::Ok().json(UserResponse { username: user._id, relations: user.connections }),
+        Ok(user) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(
+            UserResponse { username: user._id, relations: user.connections })),
         Err(e) => e.gen_response()
     }
 }
@@ -187,7 +200,8 @@ pub async fn get_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Respo
 /// DELETE-Request at `{api-url}/user` with a cookie containing a valid JWT
 /// => 200 [cookie is removed]
 ///     {
-///         "success": true
+///         "success": true,
+///         "time": "2022-04-11 12:05:57"
 ///     }
 /// ```
 /// ```text
@@ -196,7 +210,8 @@ pub async fn get_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Respo
 ///     {
 ///         "success": false,
 ///         "code": 10,
-///         "message": "user is not logged in"
+///         "message": "user is not logged in",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 #[allow(unused_must_use)]
@@ -250,7 +265,7 @@ pub async fn remove_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Re
             }
 
             // Log the user out
-            let mut resp = HttpResponse::Ok().json(doc! {"success": true});
+            let mut resp = HttpResponse::Ok().json(ResponseObject::new());
             resp.add_removal_cookie(&CookieBuilder::new(JWT_TOKEN_COOKIE_NAME, "-1")
                 .same_site(SameSite::Strict).http_only(true).finish());
             resp

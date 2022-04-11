@@ -2054,7 +2054,7 @@ dependencies = [
 
 [[package]]
 name = "writeUp"
-version = "0.4.1"
+version = "0.4.3"
 dependencies = [
  "actix-cors",
  "actix-rt",

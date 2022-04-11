@@ -12,9 +12,9 @@ use mongodb::{bson, Database};
 use crate::db_access::{update_dbo_by_id, USER, User, filter_allowances_by_user_id, AllowanceLevel, get_dbo_by_id, is_safe};
 use crate::db_access::{AllowanceLevel::Forbidden, DBError::QueryError};
 use crate::SHARE_SECRET_ENV_VAR_KEY;
-use crate::web::{auth::get_user_from_request, note::get_allow_level_for_note};
+use crate::web::{auth::get_user_from_request, note::get_allow_level_for_note, ResponseObject, ResponseObjectWithPayload};
 use crate::web::error::APIError;
-use crate::web::share::json_objects::{InviteBody, RelationResponse, ShareRequest, SuccessResponse};
+use crate::web::share::json_objects::{InviteBody, RelationResponse, ShareRequest};
 
 // Invite-Assets
 /// Time in minutes until an invite expires
@@ -57,11 +57,6 @@ mod json_objects {
         /// The identifier of the inviting user
         pub user_id: String
     }
-
-    #[derive(Serialize)]
-    pub struct SuccessResponse { //TODO remove and replace with actual responses
-        pub success: bool
-    }
 }
 
 /// ENDPOINT: Creates an invitation code to allow the connection of two user
@@ -85,7 +80,11 @@ mod json_objects {
 /// GET-Request at `{api-url}/share` with a cookie containing a valid JWT
 /// => 200
 ///     {
-///         "code": "opH6eXAbVbJFR3QiDFQhbGciOiGTUzI1NiJ9.eyJggRLiOiJ5RLKM2IiwiZXhwIjoxNjQ4NzE5MTEzfQ.CUIReWW7JAj8q7cnJx93ofcsyrWfJh5VLJAj57vEwe4Q"
+///         "success": true,
+///         "content": {
+///             "code": "opH6eXAbVbJFR3QiDFQhbGciOiGTUzI1NiJ9.eyJggRLiOiJ5RLKM2IiwiZXhwIjoxNjQ4NzE5MTEzfQ.CUIReWW7JAj8q7cnJx93ofcsyrWfJh5VLJAj57vEwe4Q"
+///         },
+///         "time": "2022-04-11 12:20:28"
 ///     }
 /// ```
 /// ```text
@@ -94,7 +93,8 @@ mod json_objects {
 ///     {
 ///         "success": false,
 ///         "code": 10,
-///         "message": "user is not logged in"
+///         "message": "user is not logged in",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 #[get("/share")]
@@ -102,7 +102,7 @@ pub async fn get_relation_code(req: HttpRequest, db:Data<Mutex<Database>>) -> im
     match get_user_from_request(req, &db).await {
         Ok(user) => {
             match gen_invite(&user._id) {
-                Ok(code) => HttpResponse::Ok().json(InviteBody {code}),
+                Ok(code) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(InviteBody {code})),
                 Err(e) => e.gen_response()
             }
         }
@@ -137,7 +137,11 @@ pub async fn get_relation_code(req: HttpRequest, db:Data<Mutex<Database>>) -> im
 ///     }
 /// => 200
 ///     {
-///         "user_id": "otherUser"
+///         "success": true,
+///         "content": {
+///             "user_id": "otherUser"
+///         },
+///         "time": "2022-04-11 12:20:28"
 ///     }
 /// ```
 /// ```text
@@ -149,7 +153,8 @@ pub async fn get_relation_code(req: HttpRequest, db:Data<Mutex<Database>>) -> im
 ///     {
 ///         "success": false,
 ///         "code": 24,
-///         "message": "invalid instruction: user can't connect with themselves"
+///         "message": "invalid instruction: user can't connect with themselves",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 /// ```text
@@ -161,7 +166,8 @@ pub async fn get_relation_code(req: HttpRequest, db:Data<Mutex<Database>>) -> im
 ///     {
 ///         "success": false,
 ///         "code": 27,
-///         "message": "invite is not valid (anymore)"
+///         "message": "invite is not valid (anymore)",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 /// ```text
@@ -173,7 +179,8 @@ pub async fn get_relation_code(req: HttpRequest, db:Data<Mutex<Database>>) -> im
 ///     {
 ///         "success": false,
 ///         "code": 10,
-///         "message": "user is not logged in"
+///         "message": "user is not logged in",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 #[post("/share")]
@@ -204,7 +211,7 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
                     if update_curr_user.await.is_err() || update_invite_user.await.is_err() {
                         return APIError::QueryError("relation could not be established".to_string()).gen_response()
                     }
-                    HttpResponse::Ok().json(RelationResponse { user_id: invite_user_id})
+                    HttpResponse::Ok().json(ResponseObjectWithPayload::new(RelationResponse { user_id: invite_user_id}))
                 }
                 Err(e) => e.gen_response()
             }
@@ -238,7 +245,8 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
 /// DELETE-Request at `{api-url}/share/testUser` with a cookie containing a valid JWT
 /// => 200
 ///     {
-///         "success": true
+///         "success": true,
+///         "time": "2022-04-11 12:05:57"
 ///     }
 /// ```
 /// ```text
@@ -247,7 +255,8 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
 ///     {
 ///         "success": false,
 ///         "code": 24,
-///         "message": "invalid instruction: user don't share a connection"
+///         "message": "invalid instruction: user don't share a connection",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 /// ```text
@@ -256,7 +265,8 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
 ///     {
 ///         "success": false,
 ///         "code": 21,
-///         "message": "requested id contains forbidden character"
+///         "message": "requested id contains forbidden character",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 /// ```text
@@ -265,7 +275,8 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
 ///     {
 ///         "success": false,
 ///         "code": 10,
-///         "message": "user is not logged in"
+///         "message": "user is not logged in",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 #[delete("/share/{user_id}")]
@@ -321,7 +332,7 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, db: Data<Mute
             if !error.is_empty() {
                 return APIError::QueryError("relation or shares could not be fully removed".to_string()).gen_response()
             }
-            HttpResponse::Ok().json(SuccessResponse { success: true })
+            HttpResponse::Ok().json(ResponseObject::new())
         }
         Err(e) => e.gen_response()
     }
@@ -364,7 +375,8 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, db: Data<Mute
 ///     ]
 /// => 200
 ///     {
-///         "success": true
+///         "success": true,
+///         "time": "2022-04-11 12:05:57"
 ///     }
 /// ```
 /// ```text
@@ -383,7 +395,8 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, db: Data<Mute
 ///     {
 ///         "success": false,
 ///         "code": 21,
-///         "message": "requested id contains forbidden character"
+///         "message": "requested id contains forbidden character",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 /// ```text
@@ -402,7 +415,8 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, db: Data<Mute
 ///     {
 ///         "success": false,
 ///         "code": 10,
-///         "message": "user is not logged in"
+///         "message": "user is not logged in",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 /// ```text
@@ -421,7 +435,8 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, db: Data<Mute
 ///     {
 ///         "success": false,
 ///         "code": 12,
-///         "message": "no permission"
+///         "message": "no permission",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 #[put("/share/{note_id}")]
@@ -480,7 +495,7 @@ pub async fn update_allowances(path: Path<String>, req: HttpRequest, allow_req: 
             if !errors.is_empty() { //TODO Create an error report and return it
                 return APIError::QueryError("not all allowances were updated".to_string()).gen_response()
             }
-            HttpResponse::Ok().json(SuccessResponse { success: true })
+            HttpResponse::Ok().json(ResponseObject::new())
         }
         Ok(_) =>  APIError::NoPermissionError.gen_response(), // Not owner of the note
         Err(e) => e.gen_response() // unknown

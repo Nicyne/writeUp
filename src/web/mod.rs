@@ -46,6 +46,48 @@ use crate::db_access::{AllowanceLevel, DBError, get_dbo_by_id, Note, NOTES};
 use crate::web::auth::get_user_from_request;
 use crate::web::error::APIError;
 
+/// The format used to display time in
+pub const TIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
+
+/// Basic Response with no additional information to be returned
+#[derive(Serialize)]
+pub struct ResponseObject {
+    /// Indicator if the request worked
+    success: bool,
+    /// Timestamp of when the response was created
+    time: String
+}
+impl ResponseObject {
+    /// Creates a new default ResponseObject
+    pub fn new() -> Self {
+        ResponseObject {
+            success: true,
+            time: chrono::Local::now().format(TIME_FORMAT).to_string()
+        }
+    }
+}
+
+/// Response with a payload to return
+#[derive(Serialize)]
+pub struct ResponseObjectWithPayload<T> {
+    /// Indicator if the request worked
+    success: bool,
+    /// The actual payload to be responded with
+    content: T,
+    /// Timestamp of when the response was created
+    time: String
+}
+impl <T> ResponseObjectWithPayload<T> {
+    /// Creates a new default ResponseObjectWithPayload with a given object as its payload
+    pub fn new(payload: T) -> Self {
+        ResponseObjectWithPayload {
+            success: true,
+            content: payload,
+            time: chrono::Local::now().format(TIME_FORMAT).to_string()
+        }
+    }
+}
+
 /// Converts web-server internal json-conversion-error to one conforming to the rest of the responses
 pub fn json_error_handler(err:JsonPayloadError, _req: &HttpRequest) -> actix_web::error::Error {
     actix_web::error::InternalError::from_response(err, error::APIError::InvalidPayloadError.gen_response()).into()
@@ -98,7 +140,8 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
 /// ENDPOINT: Returns information on the system currently running.
 ///
 /// Returns one of the following HttpResponses:
-/// * `200` [Body: JSON] - System-information could be compiled
+/// * `200` [Body: JSON]
+///     - System-information could be compiled
 ///
 /// # Examples
 ///
@@ -106,8 +149,9 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
 /// GET-Request at `{api-url}/system`
 /// => 200
 ///     {
+///         "success": true,
 ///         "application": "writeUp",
-///         "version": "0.4.1",
+///         "version": "0.4.3",
 ///         "db": {
 ///             "type": "mongo",
 ///             "version": 1.0
@@ -118,6 +162,7 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
 #[get("/system")]
 async fn return_system_status() -> impl Responder {
     return HttpResponse::Ok().json(doc! {
+        "success": true,
         "application": env!("CARGO_PKG_NAME").to_string(),
         "version": env!("CARGO_PKG_VERSION").to_string(),
         "db": {
@@ -148,26 +193,30 @@ async fn return_system_status() -> impl Responder {
 /// ```text
 /// GET-Request at `{api-url}/notes` with a cookie containing a valid JWT
 /// => 200
-///     [
-///         {
-///             "note_id": "7254fa970b62u3ag62dr4d3l",
-///             "title": "Test-Note",
-///             "tags": [
-///                 "Test",
-///                 "Note"
-///             ],
-///             "allowance": "Owner"
-///         },
-///         {
-///             "note_id": "7354fa9uu782u3ag62t54d3l",
-///             "title": "Note, but this time different",
-///             "tags": [
-///                 "Note",
-///                 "Different"
-///             ],
-///             "allowance": "Read"
-///         }
-///     ]
+///     {
+///         "success": true,
+///         "content": [
+///             {
+///                 "note_id": "7254fa970b62u3ag62dr4d3l",
+///                 "title": "Test-Note",
+///                 "tags": [
+///                     "Test",
+///                     "Note"
+///                 ],
+///                 "allowance": "Owner"
+///             },
+///             {
+///                 "note_id": "7354fa9uu782u3ag62t54d3l",
+///                 "title": "Note, but this time different",
+///                 "tags": [
+///                     "Note",
+///                     "Different"
+///                 ],
+///                 "allowance": "Read"
+///             }
+///         ],
+///         "time": "2022-04-11 12:00:05"
+///     }
 /// ```
 /// ```text
 /// GET-Request at `{api-url}/notes` without a cookie containing a JWT
@@ -211,7 +260,7 @@ async fn list_notes(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Respond
                 }
             }
             // Return the compiled list of notes
-            HttpResponse::Ok().json(response_vector)
+            HttpResponse::Ok().json(ResponseObjectWithPayload::new(response_vector))
         }
         Err(e) => e.gen_response()
     }

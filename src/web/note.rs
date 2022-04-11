@@ -8,6 +8,7 @@ use crate::db_access::{AllowanceLevel, DBError, del_dbo_by_id, get_dbo_by_id, in
 use crate::web::error::APIError;
 use crate::web::auth::{get_user_from_request, get_user_id_from_request};
 use crate::web::note::json_objects::{NoteRequest, NoteResponse};
+use crate::web::{ResponseObject, ResponseObjectWithPayload};
 
 // Response-/Request-Objects
 /// Structs modelling the request- and response-bodies
@@ -75,17 +76,21 @@ mod json_objects {
 ///     }
 /// => 201
 ///     {
-///         "note_id": "7254fa970b62u3ag62dr4d3l",
-///         "note": {
-///             "title": "Test-Note",
-///             "content": "This is but a simple demonstration",
-///             "owner_id": "testUser",
-///             "tags": [
-///                 "Test",
-///                 "Note"
-///             ]
+///         "success": true,
+///         "content": {
+///             "note_id": "7254fa970b62u3ag62dr4d3l",
+///             "note": {
+///                 "title": "Test-Note",
+///                 "content": "This is but a simple demonstration",
+///                 "owner_id": "testUser",
+///                 "tags": [
+///                     "Test",
+///                     "Note"
+///                 ]
+///             },
+///             "allowance": "Owner"
 ///         },
-///         "allowance": "Owner"
+///         "time": "2022-04-11 12:20:28"
 ///     }
 /// ```
 /// ```text
@@ -99,7 +104,8 @@ mod json_objects {
 ///     {
 ///         "success": false,
 ///         "code": 10,
-///         "message": "user is not logged in"
+///         "message": "user is not logged in",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 #[post("/note")]
@@ -118,7 +124,7 @@ pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, db: Da
                                                    doc! {"$push": {"allowances": {"note_id": &note_id, "level": "Owner"}}},
                                                    db.get_ref()).await {
                         Ok(_res) => HttpResponse::Created() // Return the created note
-                            .json(NoteResponse { note_id, note, allowance: AllowanceLevel::Owner}), //TODO? Re-fetch object instead of putting together
+                            .json(ResponseObjectWithPayload::new(NoteResponse { note_id, note, allowance: AllowanceLevel::Owner})), //TODO? Re-fetch object instead of putting together
                         Err(_) => APIError::QueryError("note could not be linked to user-account".to_string()).gen_response() //unknown
                     }
                 }
@@ -155,17 +161,21 @@ pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, db: Da
 /// GET-Request at `{api-url}/note/7254fa970b62u3ag62dr4d3l` with a cookie containing a valid JWT
 /// => 200
 ///     {
-///         "note_id": "7254fa970b62u3ag62dr4d3l",
-///         "note": {
-///             "title": "Test-Note",
-///             "content": "This is but a simple demonstration",
-///             "owner_id": "testUser",
-///             "tags": [
-///                 "Test",
-///                 "Note"
-///             ]
+///         "success": true,
+///         "content": {
+///             "note_id": "7254fa970b62u3ag62dr4d3l",
+///             "note": {
+///                 "title": "Test-Note",
+///                 "content": "This is but a simple demonstration",
+///                 "owner_id": "testUser",
+///                 "tags": [
+///                     "Test",
+///                     "Note"
+///                 ]
+///             },
+///             "allowance": "Owner"
 ///         },
-///         "allowance": "Owner"
+///         "time": "2022-04-11 12:20:28"
 ///     }
 /// ```
 /// ```text
@@ -174,7 +184,8 @@ pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, db: Da
 ///     {
 ///         "success": false,
 ///         "code": 21,
-///         "message": "requested id contains forbidden character"
+///         "message": "requested id contains forbidden character",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 /// ```text
@@ -183,7 +194,8 @@ pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, db: Da
 ///     {
 ///         "success": false,
 ///         "code": 10,
-///         "message": "user is not logged in"
+///         "message": "user is not logged in",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 /// ```text
@@ -192,7 +204,8 @@ pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, db: Da
 ///     {
 ///         "success": false,
 ///         "code": 12,
-///         "message": "no permission"
+///         "message": "no permission",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 #[get("/note/{note_id}")]
@@ -207,7 +220,7 @@ pub async fn get_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Datab
         Ok(allowance) => {
             // Get note and return it
             match get_dbo_by_id::<Note>(NOTES, note_id.clone(), db.get_ref()).await {
-                Ok(note) => HttpResponse::Ok().json(NoteResponse { note_id, note, allowance}),
+                Ok(note) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(NoteResponse { note_id, note, allowance})),
                 Err(DBError::NoDocumentFoundError) => APIError::DBInconsistencyError(
                     get_user_id_from_request(req).unwrap(), note_id).gen_response(), //user has allowance for a nonexisting note
                 Err(_) => APIError::QueryError("failed to retrieve note".to_string()).gen_response() //unknown
@@ -249,18 +262,22 @@ pub async fn get_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Datab
 ///     }
 /// => 200
 ///     {
-///         "note_id": "7254fa970b62u3ag62dr4d3l",
-///         "note": {
-///             "title": "Test-Note",
-///             "content": "This is but a simple demonstration",
-///             "owner_id": "testUser",
-///             "tags": [
-///                 "Test",
-///                 "Note",
-///                 "Updated"
-///             ]
+///         "success": true,
+///         "content": {
+///             "note_id": "7254fa970b62u3ag62dr4d3l",
+///             "note": {
+///                 "title": "Test-Note",
+///                 "content": "This is but a simple demonstration",
+///                 "owner_id": "testUser",
+///                 "tags": [
+///                     "Test",
+///                     "Note",
+///                     "Updated"
+///                 ]
+///             },
+///             "allowance": "Owner"
 ///         },
-///         "allowance": "Owner"
+///         "time": "2022-04-11 12:20:28"
 ///     }
 /// ```
 /// ```text
@@ -274,7 +291,8 @@ pub async fn get_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Datab
 ///     {
 ///         "success": false,
 ///         "code": 21,
-///         "message": "requested id contains forbidden character"
+///         "message": "requested id contains forbidden character",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 /// ```text
@@ -288,7 +306,8 @@ pub async fn get_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Datab
 ///     {
 ///         "success": false,
 ///         "code": 10,
-///         "message": "user is not logged in"
+///         "message": "user is not logged in",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 /// ```text
@@ -302,7 +321,8 @@ pub async fn get_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Datab
 ///     {
 ///         "success": false,
 ///         "code": 12,
-///         "message": "no permission"
+///         "message": "no permission",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 #[put("/note/{note_id}")]
@@ -323,11 +343,11 @@ pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Js
                 "content": &note_req.content,
                 "tags": &note_req.tags
             }}, &db).await {
-                Ok(_res) => HttpResponse::Ok().json(NoteResponse { //TODO? Re-fetch object instead of putting together
+                Ok(_res) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(NoteResponse { //TODO? Re-fetch object instead of putting together
                     note_id,
                     note: note_req.to_note(&get_user_id_from_request(req).unwrap()),
                     allowance
-                }),
+                })),
                 Err(_) => APIError::QueryError("update of note failed".to_string()).gen_response() //unknown
             }
         }
@@ -361,7 +381,8 @@ pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Js
 /// DELETE-Request at `{api-url}/note/7254fa970b62u3ag62dr4d3l` with a cookie containing a valid JWT
 /// => 200
 ///     {
-///         "success": true
+///         "success": true,
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 /// ```text
@@ -370,7 +391,8 @@ pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Js
 ///     {
 ///         "success": false,
 ///         "code": 21,
-///         "message": "requested id contains forbidden character"
+///         "message": "requested id contains forbidden character",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 /// ```text
@@ -379,7 +401,8 @@ pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Js
 ///     {
 ///         "success": false,
 ///         "code": 10,
-///         "message": "user is not logged in"
+///         "message": "user is not logged in",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 /// ```text
@@ -388,7 +411,8 @@ pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Js
 ///     {
 ///         "success": false,
 ///         "code": 12,
-///         "message": "no permission"
+///         "message": "no permission",
+///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
 #[delete("/note/{note_id}")]
@@ -407,7 +431,7 @@ pub async fn remove_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Da
                 Ok(_res) => {
                     // Remove note
                     match del_dbo_by_id::<Note>(NOTES, note_id, &db).await {
-                        Ok(_res) => HttpResponse::Ok().json(doc! {"success": true}),
+                        Ok(_res) => HttpResponse::Ok().json(ResponseObject::new()),
                         Err(_) => APIError::QueryError("note-object could not be removed".to_string()).gen_response()
                     }
                 }

@@ -2,14 +2,14 @@
 
 use std::env;
 use std::sync::Mutex;
-use actix_web::{post, delete, HttpResponse, Responder, web, HttpRequest};
+use actix_web::{post, get, delete, HttpResponse, Responder, web, HttpRequest};
 use actix_web::cookie::{CookieBuilder, SameSite, time::Duration};
 use actix_web::web::Data;
 use chrono::Utc;
 use jsonwebtoken::{Algorithm, decode, DecodingKey, encode, EncodingKey, Header, Validation};
 use mongodb::Database;
 use crate::db_access::{Credential, CREDENTIALS, DBError, get_dbo_by_id, User, USER};
-use crate::web::{error::APIError, auth::json_objects::TokenResponse};
+use crate::web::{error::APIError, ResponseObject};
 use serde::{Serialize, Deserialize};
 use crate::JWT_SECRET_ENV_VAR_KEY;
 
@@ -31,7 +31,7 @@ struct Claims {  // Credits to: https://blog.logrocket.com/jwt-authentication-in
 // Response-/Request-Objects
 /// Structs modelling the request- and response-bodies
 mod json_objects {
-    use serde::{Serialize, Deserialize};
+    use serde::Deserialize;
 
     /// Body of an authentication-request
     #[derive(Deserialize)]
@@ -40,13 +40,6 @@ mod json_objects {
         pub username: String,
         /// Password
         pub passwd: String
-    }
-
-    /// Body of a successful authentication-request
-    #[derive(Serialize)]
-    pub struct TokenResponse { //TODO Add expire-timestamp
-        /// Indicator if the authentication worked
-        pub success: bool
     }
 }
 
@@ -74,7 +67,8 @@ mod json_objects {
 ///     }
 /// => 200 [cookie with JWT is set]
 ///     {
-///         "success": true
+///         "success": true,
+///         "time": "2022-04-11 12:05:57"
 ///     }
 /// ```
 /// ```text
@@ -105,7 +99,7 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
                             .same_site(SameSite::Strict)
                             .max_age(Duration::minutes(JWT_DURATION_MINUTES))
                             .http_only(true).finish(); //TODO Secure Cookie
-                        let mut response = HttpResponse::Ok().json(json_objects::TokenResponse {success: true});
+                        let mut response = HttpResponse::Ok().json(ResponseObject::new());
                         if response.add_cookie(&token_cookie).is_err() {
                             return APIError::InternalServerError("failed to set authentication-cookie".to_string()).gen_response()} //Cookie couldn't be parsed
                         response
@@ -137,7 +131,8 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
 /// DELETE-Request at `{api-url}/auth` with a cookie containing a valid JWT
 /// => 200 [cookie is removed]
 ///     {
-///         "success": true
+///         "success": true,
+///         "time": "2022-04-11 12:05:57"
 ///     }
 /// ```
 /// ```text
@@ -154,7 +149,7 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
 pub async fn logout(req: HttpRequest) -> impl Responder {
     match get_user_id_from_request(req) {
         Ok(_) => {
-            let mut resp = HttpResponse::Ok().json(TokenResponse { success: true });
+            let mut resp = HttpResponse::Ok().json(ResponseObject::new());
             resp.add_removal_cookie(&CookieBuilder::new(JWT_TOKEN_COOKIE_NAME, "-1")
                 .same_site(SameSite::Strict).http_only(true).finish());
             resp

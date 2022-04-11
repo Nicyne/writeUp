@@ -21,6 +21,7 @@
 use actix_web::{HttpResponse, HttpResponseBuilder};
 use thiserror::Error;
 use serde::Serialize;
+use crate::web::TIME_FORMAT;
 
 /// Struct modelling the response-body of an error
 #[derive(Serialize)]
@@ -30,7 +31,9 @@ struct ErrorResponse {
     /// Error-code indicating what went wrong
     code: i8,
     /// Specific description of what went wrong
-    message: String
+    message: String,
+    /// Timestamp of when the response was created
+    time: String
 }
 
 /// Error-types that can appear in processing requests
@@ -99,7 +102,8 @@ impl APIError {
         response_builder.json(ErrorResponse {
             success: false,
             code: error_code,
-            message: self.to_string()
+            message: self.to_string(),
+            time: chrono::Local::now().format(TIME_FORMAT).to_string()
         })
     }
 }
