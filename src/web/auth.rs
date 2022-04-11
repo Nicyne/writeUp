@@ -7,9 +7,10 @@ use actix_web::cookie::{CookieBuilder, SameSite, time::Duration};
 use actix_web::web::Data;
 use chrono::Utc;
 use jsonwebtoken::{Algorithm, decode, DecodingKey, encode, EncodingKey, Header, Validation};
+use mongodb::bson::doc;
 use mongodb::Database;
 use crate::db_access::{Credential, CREDENTIALS, DBError, get_dbo_by_id, User, USER};
-use crate::web::{error::APIError, ResponseObject};
+use crate::web::{error::APIError, ResponseObject, ResponseObjectWithPayload};
 use serde::{Serialize, Deserialize};
 use crate::JWT_SECRET_ENV_VAR_KEY;
 
@@ -110,6 +111,55 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
         }
         Err(DBError::NoDocumentFoundError) => APIError::InvalidCredentialsError("wrong credentials".to_string()).gen_response(), //No user with that username has been found
         Err(_) => APIError::QueryError("can not access credentials".to_string()).gen_response() //Unknown
+    }
+}
+
+/// ENDPOINT: Checks if a user is currently logged in
+///
+/// Returns one of the following HttpResponses:
+/// * `200`
+///     - Valid JWT-cookie was found
+///     - No valid JWT-cookie was found
+/// * `500`
+///     - Something went wrong internally (debug)
+///
+/// # Arguments
+///
+/// * `req` - The HttpRequest that was made
+/// * `db` - The AppData containing a Mutex-secured Database-connection
+///
+/// # Examples
+///
+/// ```text
+/// GET-Request at `{api-url}/auth` with a cookie containing a valid JWT
+/// => 200
+///     {
+///         "success": true,
+///         "content": {
+///             "username": "testUser"
+///         },
+///         "time": "2022-04-11 12:05:57"
+///     }
+/// ```
+/// ```text
+/// GET-Request at `{api-url}/auth` without a valid cookie containing a JWT
+/// => 200
+///     {
+///         "success": false,
+///         "time": "2022-04-11 12:05:57"
+///     }
+/// ```
+#[get("/auth")]
+pub async fn get_auth_status(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
+    match get_user_from_request(req, &db).await {
+        Ok(user) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(
+            doc! {"username": user._id})),
+        Err(APIError::AuthenticationError) => {
+            let mut response = ResponseObject::new();
+            response.success = false;
+            HttpResponse::Ok().json(response)
+        }
+        Err(e) => e.gen_response()
     }
 }
 

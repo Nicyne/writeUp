@@ -7,6 +7,7 @@
 //!
 //! + Authorisation:
 //!     * `POST /auth`              - Login [[`authenticate`](auth::authenticate)]
+//!     * `GET /auth`               - Get login-status [[`get_auth_status`](auth::get_auth_status)]
 //!     * `DELETE /auth`            - Logout [[`logout`](auth::logout)]
 //!
 //! + Notes:
@@ -119,6 +120,7 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
     // Add all special handler
     cfg.service(return_system_status)
         .service(auth::authenticate)
+        .service(auth::get_auth_status)
         .service(list_notes)
         .service(auth::logout);
     // Add all note-related handler
