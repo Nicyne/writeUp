@@ -5,4 +5,4 @@
  * directory will automatically redirect
  * the user to the login page.
  */
-export const publicRoutes = ['/', '/login', '/register'];
+export const protectedRoutes = ['/app'];

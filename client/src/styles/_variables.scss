@@ -1,9 +1,14 @@
 /* COLORS */
-$bg-primary: #101010;
-$bg-secondary: #191919;
+$bg-primary: #121212;
+$bg-secondary: #26292c;
+$bg-tertiary: #16181a;
 
-$fg-primary: #fefefe;
-$fg-secondary: #efefef;
+$fg-primary: #fdf9fe;
+$fg-secondary: #afb0b1;
+
+$brand-primary: #60d2fa;
+$brand-secondary: darken($brand-primary, 10%);
+$brand-fg: $bg-primary;
 
 /* SIZES */
 $border-radius: 0.25rem;

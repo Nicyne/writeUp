@@ -3,8 +3,7 @@ import { createContext } from 'react';
 import { useUser } from 'hooks';
 import { useRouter } from 'next/router';
 import { IUser } from 'types';
-import { publicRoutes } from 'values';
-
+import { protectedRoutes } from 'values';
 
 export interface IUserContext {
   currentUser?: IUser;
@@ -22,9 +21,9 @@ export const UserContextProvider: NextPage = ({ children }) => {
     typeof window !== 'undefined' &&
     !user &&
     !loading &&
-    !publicRoutes.includes(router.pathname)
+    protectedRoutes.includes(router.pathname)
   ) {
-    router.push('/login');
+    router.push('/auth/login');
   }
 
   return (

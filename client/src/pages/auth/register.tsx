@@ -1,14 +1,14 @@
-import styles from 'styles/login.module.scss';
+import styles from 'styles/pages/login.module.scss';
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { SyntheticEvent, useContext, useEffect, useState } from 'react';
-import { UserContext } from 'context/userContext';
-import { dApi } from '../lib';
+import { UserContext } from 'context';
+import { dApi } from 'lib';
 
 const Login: NextPage = () => {
   const router = useRouter();
-  const { currentUser, loading, mutate } = useContext(UserContext);
+  const { currentUser, loading } = useContext(UserContext);
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
 
@@ -23,7 +23,7 @@ const Login: NextPage = () => {
     try {
       await dApi.addUser(username, password);
 
-      await router.push('/login');
+      await router.push('/auth/login');
     } catch (err: any) {
       console.error(err);
     }
