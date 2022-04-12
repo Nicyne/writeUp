@@ -7,26 +7,49 @@ interface IUserAllowance {
   allowance: allowance;
 }
 
+interface IResponseArray extends Response {
+  success: boolean;
+  content: [];
+  time: string;
+  code?: string;
+  message?: string;
+}
+
+interface IResponseObject<T> extends Omit<IResponseArray, 'content'> {
+  content: T;
+}
+
+interface IRequestOptions {
+  endpoint: endpoint;
+  method: 'GET' | 'POST' | 'DELETE' | 'PUT';
+  params?: string;
+  body?: string;
+  headers?: HeadersInit;
+}
+
 export class Api {
   private contentType = { 'Content-Type': 'application/json' };
 
   constructor() {}
 
-  private async requestBuilder(
-    endpoint: endpoint,
-    param?: string,
-    options?: RequestInit
+  private async requestBuilder<T = IResponseArray | IResponseObject<any>>(
+    options: IRequestOptions
   ) {
-    const requestOptions = options
-      ? options
-      : ({ method: 'GET', credentials: 'include' } as RequestInit);
-    const requestParam = param ? '/' + param : '';
-
     const url =
       window.location.protocol + '//' + window.location.hostname + ':8080/api/'; //TODO Port shouldn't be static
+    let params = options.params ? '/' + options.params : '';
 
-    return new Promise<any>((resolve, reject) => {
-      fetch(url + endpoint + requestParam, requestOptions)
+    return new Promise<T>((resolve, reject) => {
+      fetch(url + options.endpoint + params, {
+        method: options.method,
+        credentials: 'include',
+        headers: {
+          ...options.headers,
+          ...this.contentType,
+        },
+        body: options.body,
+      })
+        .then((res) => res.json())
         .then((res) => resolve(res))
         .catch((err) => reject(err));
     });
@@ -35,55 +58,53 @@ export class Api {
   /* Authentication */
 
   public async login(username: string, password: string) {
-    const res = await this.requestBuilder('auth', undefined, {
+    const res = await this.requestBuilder({
+      endpoint: 'auth',
       method: 'POST',
-      headers: this.contentType,
-      credentials: 'include',
       body: JSON.stringify({ username: username, passwd: password }),
     });
-    if (!res.ok) throw new Error('Could not authenticate');
-    return res.json();
+    if (!res.success) throw new Error(res.code);
+    return res.content;
   }
 
   public async logout() {
-    const res = await this.requestBuilder('auth', undefined, {
+    const res = await this.requestBuilder({
+      endpoint: 'auth',
       method: 'DELETE',
-      credentials: 'include',
     });
-    if (!res.ok) throw new Error('Could not logout');
-    return res.json();
+    if (!res.success) throw new Error(res.code);
+    return res.content;
   }
 
   /* User */
 
   public async getCurrentUser() {
-    const res = await this.requestBuilder('user');
-    if (!res.ok) throw new Error('Could not get current User');
-    return res.json();
+    const res = await this.requestBuilder({
+      endpoint: 'auth',
+      method: 'GET',
+    });
+    if (!res.success) throw new Error(res.code);
+    return res.content;
   }
 
   public async addUser(username: string, password: string) {
     if (!username || !password) throw new Error('received invalid credentials');
-    const res = await this.requestBuilder('user', undefined, {
+    const res = await this.requestBuilder({
+      endpoint: 'user',
       method: 'POST',
-      credentials: 'include',
-      headers: this.contentType,
-      body: JSON.stringify({
-        username: username,
-        passwd: password,
-      }),
+      body: JSON.stringify({ username: username, passwd: password }),
     });
-    if (!res.ok) throw new Error(res.error);
-    return res.json();
+    if (!res.success) throw new Error(res.code);
+    return res.content;
   }
 
   public async deleteUser() {
-    const res = await this.requestBuilder('user', undefined, {
+    const res = await this.requestBuilder({
+      endpoint: 'user',
       method: 'DELETE',
-      credentials: 'include',
     });
-    if (!res.ok) throw new Error(res.error);
-    return res.json();
+    if (!res.success) throw new Error(res.code);
+    return res.content;
   }
 
   public async updateUser() {
@@ -93,15 +114,22 @@ export class Api {
   /* Notes */
 
   public async getNotes(): Promise<INoteShallow[]> {
-    const res = await this.requestBuilder('notes');
-    if (!res.ok) return [];
-    return <INoteShallow[]>res.json();
+    const res = await this.requestBuilder<IResponseArray>({
+      endpoint: 'notes',
+      method: 'GET',
+    });
+    if (!res.success) throw new Error(res.code);
+    return <INoteShallow[]>res.content;
   }
 
   public async getNote(id: string): Promise<INote> {
-    const res = await this.requestBuilder('note', id);
-    if (!res.ok) throw new Error('Could not fetch note with id: ' + id);
-    return <INote>res.json();
+    const res = await this.requestBuilder({
+      endpoint: 'note',
+      method: 'GET',
+      params: id,
+    });
+    if (!res.success) throw new Error(res.code);
+    return <INote>res.content;
   }
 
   public async addNote(
@@ -109,77 +137,81 @@ export class Api {
     content: string,
     tags: string[]
   ): Promise<INote> {
-    const res = await this.requestBuilder('note', undefined, {
+    const res = await this.requestBuilder({
+      endpoint: 'note',
       method: 'POST',
-      headers: this.contentType,
-      credentials: 'include',
-      body: JSON.stringify({ title, content, tags }),
+      body: JSON.stringify({
+        title,
+        content,
+        tags,
+      }),
     });
-    if (!res.ok) throw new Error('Could not create note');
-    return <INote>res.json();
+    if (!res.success) throw new Error(res.code);
+    return <INote>res.content;
   }
 
   public async deleteNote(id: string) {
-    const res = await this.requestBuilder('note', id, {
+    const res = await this.requestBuilder({
+      endpoint: 'note',
       method: 'DELETE',
-      credentials: 'include',
+      params: id,
     });
-    if (!res.ok) throw new Error('Could not delete note');
-    return res.json();
+    if (!res.success) throw new Error(res.code);
+    return res.content;
   }
 
   public async updateNote(note: INote): Promise<INote> {
-    const res = await this.requestBuilder('note', note.note_id, {
+    const res = await this.requestBuilder({
+      endpoint: 'note',
       method: 'PUT',
-      headers: this.contentType,
-      credentials: 'include',
+      params: note.note_id,
       body: JSON.stringify(note.note),
     });
-    if (!res.ok)
-      throw new Error('Could not save note with id: ' + note.note_id);
-    return <INote>res.json();
+    if (!res.success) throw new Error(res.code);
+    return <INote>res.content;
   }
+
+  /* SHARE */
 
   public async getShareToken(): Promise<string> {
-    const res = await this.requestBuilder('share');
-    if (!res.ok) throw new Error(res.error);
-    const data = await res.json();
-    return data.code;
+    const res: IResponseObject<{ code: string }> = await this.requestBuilder({
+      endpoint: 'share',
+      method: 'GET',
+    });
+    if (!res.success) throw new Error(res.code);
+    return res.content.code;
   }
 
-  public async addRelation(token: string) {
-    const res = await this.requestBuilder('share', undefined, {
+  public async addRelation(code: string) {
+    const res = await this.requestBuilder({
+      endpoint: 'share',
       method: 'POST',
-      credentials: 'include',
-      headers: this.contentType,
       body: JSON.stringify({
-        code: token,
+        code: code,
       }),
     });
-    const data = await res.json();
-    if (!res.ok) throw data.error;
-    return data;
+    if (!res.success) throw new Error(res.code);
+    return res.content;
   }
 
   public async deleteRelation(userId: string) {
-    const res = await this.requestBuilder('share', userId, {
+    const res = await this.requestBuilder({
+      endpoint: 'share',
       method: 'DELETE',
-      credentials: 'include',
+      params: userId,
     });
-    const data = await res.json();
-    if (!res.ok) throw data.error;
-    return data;
+    if (!res.success) throw new Error(res.code);
+    return res.content;
   }
 
   public async updateAllowances(nodeId: string, allowances: IUserAllowance[]) {
-    const res = await this.requestBuilder('share', undefined, {
+    const res = await this.requestBuilder({
+      endpoint: 'share',
       method: 'PUT',
-      credentials: 'include',
-      headers: this.contentType,
       body: JSON.stringify(allowances),
     });
-    if (!res.ok) throw new Error(res.error);
-    return res.json();
+    if (!res.success) throw new Error(res.code);
+    return res.content;
   }
 }
 
