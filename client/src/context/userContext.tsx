@@ -16,6 +16,9 @@ export const UserContext = createContext<IUserContext>({});
 export const UserContextProvider: NextPage = ({ children }) => {
   const router = useRouter();
   const [user, { loading, mutate }] = useUser();
+  const mutateUser = () => {
+    mutate('user');
+  };
 
   if (
     typeof window !== 'undefined' &&
@@ -37,7 +40,9 @@ export const UserContextProvider: NextPage = ({ children }) => {
   }
 
   return (
-    <UserContext.Provider value={{ currentUser: user, loading, mutate }}>
+    <UserContext.Provider
+      value={{ currentUser: user, loading, mutate: mutateUser }}
+    >
       {children}
     </UserContext.Provider>
   );

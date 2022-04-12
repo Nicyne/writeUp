@@ -76,8 +76,6 @@ export class Api {
     return res.content;
   }
 
-  /* User */
-
   public async getCurrentUser() {
     const res = await this.requestBuilder({
       endpoint: 'auth',
@@ -86,6 +84,8 @@ export class Api {
     if (!res.success) throw new Error(res.code);
     return res.content;
   }
+
+  /* User */
 
   public async addUser(username: string, password: string) {
     if (!username || !password) throw new Error('received invalid credentials');
