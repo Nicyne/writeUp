@@ -7,6 +7,7 @@
 //!
 //! + Authorisation:
 //!     * `POST /auth`              - Login [[`authenticate`](auth::authenticate)]
+//!     * `GET /auth`               - Get login-status [[`get_auth_status`](auth::get_auth_status)]
 //!     * `DELETE /auth`            - Logout [[`logout`](auth::logout)]
 //!
 //! + Notes:
@@ -27,6 +28,8 @@
 //!     * `POST /share`             - Use an invite code to create a relation between two user [[`create_relation`](share::create_relation)]
 //!     * `DELETE /share/{user_id}` - Remove the relation between two user [[`remove_relation`](share::remove_relation)]
 //!     * `PUT /share/{note_id}`    - Update other users access-rights regarding the note [[`update_allowances`](share::update_allowances)]
+//!
+//! For a list of Error-Responses have a look at [[`error`](error)]
 
 mod note;
 mod user;
@@ -38,10 +41,58 @@ use std::env;
 use std::sync::Mutex;
 use serde::Serialize;
 use actix_web::{get, HttpRequest, HttpResponse, Responder, web::{ServiceConfig, Data}};
+use actix_web::error::JsonPayloadError;
 use mongodb::{bson::doc, Database};
 use crate::db_access::{AllowanceLevel, DBError, get_dbo_by_id, Note, NOTES};
 use crate::web::auth::get_user_from_request;
-use crate::web::error::AuthError;
+use crate::web::error::APIError;
+
+/// The format used to display time in
+pub const TIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
+
+/// Basic Response with no additional information to be returned
+#[derive(Serialize)]
+pub struct ResponseObject {
+    /// Indicator if the request worked
+    success: bool,
+    /// Timestamp of when the response was created
+    time: String
+}
+impl ResponseObject {
+    /// Creates a new default ResponseObject
+    pub fn new() -> Self {
+        ResponseObject {
+            success: true,
+            time: chrono::Local::now().format(TIME_FORMAT).to_string()
+        }
+    }
+}
+
+/// Response with a payload to return
+#[derive(Serialize)]
+pub struct ResponseObjectWithPayload<T> {
+    /// Indicator if the request worked
+    success: bool,
+    /// The actual payload to be responded with
+    content: T,
+    /// Timestamp of when the response was created
+    time: String
+}
+impl <T> ResponseObjectWithPayload<T> {
+    /// Creates a new default ResponseObjectWithPayload with a given object as its payload
+    pub fn new(payload: T) -> Self {
+        ResponseObjectWithPayload {
+            success: true,
+            content: payload,
+            time: chrono::Local::now().format(TIME_FORMAT).to_string()
+        }
+    }
+}
+
+/// Converts web-server internal json-conversion-error to one conforming to the rest of the responses
+pub fn json_error_handler(err:JsonPayloadError, _req: &HttpRequest) -> actix_web::error::Error {
+    actix_web::error::InternalError::from_response(err, error::APIError::InvalidPayloadError.gen_response()).into()
+}
 
 /// Configures the web-server to add all endpoints
 ///
@@ -69,6 +120,7 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
     // Add all special handler
     cfg.service(return_system_status)
         .service(auth::authenticate)
+        .service(auth::get_auth_status)
         .service(list_notes)
         .service(auth::logout);
     // Add all note-related handler
@@ -90,7 +142,8 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
 /// ENDPOINT: Returns information on the system currently running.
 ///
 /// Returns one of the following HttpResponses:
-/// * `200` [Body: JSON] - System-information could be compiled
+/// * `200` [Body: JSON]
+///     - System-information could be compiled
 ///
 /// # Examples
 ///
@@ -98,33 +151,39 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
 /// GET-Request at `{api-url}/system`
 /// => 200
 ///     {
+///         "success": true,
 ///         "application": "writeUp",
-///         "version": "0.1.0"
+///         "version": "0.4.3",
+///         "db": {
+///             "type": "mongo",
+///             "version": 1.0
+///         },
+///         "time": "2022-04-10 16:49:12"
 ///     }
 /// ```
 #[get("/system")]
-async fn return_system_status() -> impl Responder { //TODO flesh out
-    // Define Response-Object
-    /// Response-body containing information on the system currently running
-    #[derive(Serialize)]
-    struct SystemResponse {
-        /// The name of the application currently running
-        application: String,
-        /// The version of the application currently running
-        version: String
-    }
-    return HttpResponse::Ok().json(SystemResponse {
-        application: env!("CARGO_PKG_NAME").to_string(),
-        version: env!("CARGO_PKG_VERSION").to_string()
-    })
+async fn return_system_status() -> impl Responder {
+    return HttpResponse::Ok().json(doc! {
+        "success": true,
+        "application": env!("CARGO_PKG_NAME").to_string(),
+        "version": env!("CARGO_PKG_VERSION").to_string(),
+        "db": {
+            "type": "mongo", //TODO Read from env-var
+            "version": "1.0"
+        },
+        "time": chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
+    });
 }
 
 /// ENDPOINT: Compiles a list of all notes the current user has access to.
 ///
 /// Returns one of the following HttpResponses:
-/// * `200` [Body: JSON] - List could be compiled
-/// * `401` - No user could be verified
-/// * `500` - Something went wrong internally (debug)
+/// * `200`
+///     - \[Body: JSON\] List could be compiled
+/// * `401`
+///     - **\[10\]** No user could be verified
+/// * `500`
+///     - Something went wrong internally (debug)
 ///
 /// # Arguments
 ///
@@ -136,31 +195,39 @@ async fn return_system_status() -> impl Responder { //TODO flesh out
 /// ```text
 /// GET-Request at `{api-url}/notes` with a cookie containing a valid JWT
 /// => 200
-///     [
-///         {
-///             "note_id": "7254fa970b62u3ag62dr4d3l",
-///             "title": "Test-Note",
-///             "tags": [
-///                 "Test",
-///                 "Note"
-///             ],
-///             "allowance": "Owner"
-///         },
-///         {
-///             "note_id": "7354fa9uu782u3ag62t54d3l",
-///             "title": "Note, but this time different",
-///             "tags": [
-///                 "Note",
-///                 "Different"
-///             ],
-///             "allowance": "Read"
-///         }
-///     ]
+///     {
+///         "success": true,
+///         "content": [
+///             {
+///                 "note_id": "7254fa970b62u3ag62dr4d3l",
+///                 "title": "Test-Note",
+///                 "tags": [
+///                     "Test",
+///                     "Note"
+///                 ],
+///                 "allowance": "Owner"
+///             },
+///             {
+///                 "note_id": "7354fa9uu782u3ag62t54d3l",
+///                 "title": "Note, but this time different",
+///                 "tags": [
+///                     "Note",
+///                     "Different"
+///                 ],
+///                 "allowance": "Read"
+///             }
+///         ],
+///         "time": "2022-04-11 12:00:05"
+///     }
 /// ```
 /// ```text
 /// GET-Request at `{api-url}/notes` without a cookie containing a JWT
 /// => 401
-///     "token-cookie was not found"
+///     {
+///         "success": false,
+///         "code": 10,
+///         "message": "user is not logged in"
+///     }
 /// ```
 #[get("/notes")]
 async fn list_notes(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
@@ -189,14 +256,13 @@ async fn list_notes(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Respond
                         tags: note.tags,
                         allowance: allowance.level
                     }),
-                    Err(DBError::NoDocumentFoundError) => return AuthError::InternalServerError(
-                        format!("reference to deleted note(ID:{}) still exists in user-allowances",
-                                allowance.note_id)).gen_response(), //user has allowance for a nonexisting note
+                    Err(DBError::NoDocumentFoundError) => return APIError::DBInconsistencyError(
+                                user._id, allowance.note_id).gen_response(), //user has allowance for a nonexisting note
                     Err(_) => {} //unknown
                 }
             }
             // Return the compiled list of notes
-            HttpResponse::Ok().json(response_vector)
+            HttpResponse::Ok().json(ResponseObjectWithPayload::new(response_vector))
         }
         Err(e) => e.gen_response()
     }

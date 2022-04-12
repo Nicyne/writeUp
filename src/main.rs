@@ -40,7 +40,7 @@ use std::env;
 use std::sync::Mutex;
 use actix_cors::Cors;
 use actix_web::{App, HttpServer};
-use actix_web::web::Data;
+use actix_web::web::{Data, JsonConfig};
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use crate::db_access::connect_to_database;
@@ -94,6 +94,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(cors)
             .app_data(data.clone())
+            .app_data(JsonConfig::default().error_handler(web::json_error_handler))
             .service(actix_web::web::scope("/api").configure(web::handler_config))})
         .bind(("0.0.0.0", api_port))?
         .run()
