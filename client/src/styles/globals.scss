@@ -166,6 +166,21 @@ main {
   }
 }
 
+.hero {
+  background: rgb(63, 94, 251);
+  background: radial-gradient(
+    circle,
+    rgba(63, 94, 251, 1) 0%,
+    rgba(96, 210, 250, 1) 100%
+  );
+  text-align: center;
+  padding: 100px;
+
+  h3 {
+    font-size: 2rem;
+  }
+}
+
 /* === MENUSTRIP === */
 /* SPLIT FILE LATER */
 
@@ -206,6 +221,10 @@ main {
     border-radius: $border-radius;
     cursor: pointer;
     transition: border-color 125ms ease-out;
+
+    &.unsaved {
+      border: 1px solid #cd3545;
+    }
 
     &:hover {
       border-color: $brand-primary;
