@@ -65,6 +65,13 @@ export const Sidebar: FunctionComponent = () => {
           </ul>
         </div>
       ))}
+      <h2>All</h2>
+      {notes.map((note) => (
+        <li key={note.note_id} onClick={(e) => loadNote(note.note_id)}>
+          {note.title}
+          <button onClick={(e) => deleteNote(e, note.note_id)}>X</button>
+        </li>
+      ))}
     </div>
   );
 };

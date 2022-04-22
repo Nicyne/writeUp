@@ -37,6 +37,8 @@ import {
  *  - [x] tag sorting
  * - general
  *  - [] change allowances
+ *
+ * - [] Styling
  */
 
 /* TOP LEVEL COMPONENT FOR EDITOR */

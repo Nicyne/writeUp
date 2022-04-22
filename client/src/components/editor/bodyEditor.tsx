@@ -1,5 +1,5 @@
 import { FunctionComponent, KeyboardEvent, useContext } from 'react';
-import { EditorContext, KeyContext } from 'context';
+import { EditorContext } from 'context';
 import { Widget } from './';
 
 export const BodyEditor: FunctionComponent = () => {
@@ -44,7 +44,6 @@ export const BodyEditor: FunctionComponent = () => {
     <>
       <Widget label="T" snippet="- [ ] " />
       <Widget label="Tx" snippet="- [x] " />
-      <p>{note?.note.content}</p>
       <textarea
         name="body"
         id="body"
