@@ -32,7 +32,7 @@ const Login: NextPage = () => {
   return (
     <div className="login">
       <Head>
-        <title>Register | Writeup</title>
+        <title>Register | writeUp</title>
       </Head>
 
       <form onSubmit={register}>

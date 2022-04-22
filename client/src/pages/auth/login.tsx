@@ -23,7 +23,7 @@ const Login: NextPage = () => {
     try {
       await dApi.login(username, password);
 
-      await mutate('user');
+      await mutate();
       await router.push('/app');
     } catch (err: any) {
       console.error(err);
@@ -33,7 +33,7 @@ const Login: NextPage = () => {
   return (
     <div className="login">
       <Head>
-        <title>Login | Writeup</title>
+        <title>Login | writeUp</title>
       </Head>
 
       <form onSubmit={login}>

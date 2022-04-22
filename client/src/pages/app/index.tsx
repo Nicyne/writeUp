@@ -9,7 +9,8 @@ import remarkEmoji from 'remark-emoji';
 import type { INote, INoteShallow } from 'types';
 import { CodeBlock } from 'components';
 import { dApi, getHash } from 'lib';
-import { UserContext } from 'context';
+import { KeyContext, UserContext } from 'context';
+import Head from 'next/head';
 
 const closing: Record<string, string> = {
   '(': ')',
@@ -27,6 +28,7 @@ function getSeconds(seconds: number): Date {
 
 const Home: NextPage = () => {
   const { currentUser, loading } = useContext(UserContext);
+  const { keys, areKeysDown, isKeyDown } = useContext(KeyContext);
 
   const [notes, setNotes] = useState<INoteShallow[]>([]);
   const [curNote, setCurNote] = useState<INote | undefined>(undefined);
@@ -34,6 +36,8 @@ const Home: NextPage = () => {
 
   // AUTO SAVE
   const [noteHash, setNoteHash] = useState<string>('');
+  const [changedHash, setChangedHash] = useState<string>('');
+
   const time = getSeconds(5);
   const { pause, restart } = useTimer({
     expiryTimestamp: time,
@@ -42,8 +46,7 @@ const Home: NextPage = () => {
         pause();
         return;
       }
-      const hash = getHash(curNote.note.content);
-      if (hash === noteHash) {
+      if (noteHash === changedHash) {
         return;
       }
       await saveNote();
@@ -61,6 +64,12 @@ const Home: NextPage = () => {
     }
   }, [currentUser, loading]);
 
+  useEffect(() => {
+    if (!curNote) return;
+    setChangedHash(getHash(inputArea?.current!.value));
+    restart(getSeconds(5));
+  }, [curNote]);
+
   const getNotes = async () => {
     const data = await dApi.getNotes();
     setNotes(data);
@@ -69,6 +78,7 @@ const Home: NextPage = () => {
   const loadNote = async (e: SyntheticEvent, id: string) => {
     const data = await dApi.getNote(id);
     setNoteHash(getHash(data.note.content));
+    setChangedHash(getHash(data.note.content));
     setCurNote(data);
   };
 
@@ -97,11 +107,13 @@ const Home: NextPage = () => {
     if (!curNote) return;
     if (curNote.allowance == 'Read') return;
     await dApi.updateNote(curNote);
+    setNoteHash(getHash(curNote.note.content));
     await getNotes();
   };
 
   const deleteNote = async (e: SyntheticEvent, noteId: string) => {
     e.stopPropagation();
+    if (!areKeysDown(['shift', 'x'])) return;
     if (curNote?.note_id === noteId) setCurNote(undefined);
 
     await dApi.deleteNote(noteId);
@@ -142,6 +154,10 @@ const Home: NextPage = () => {
 
   return (
     <div className="app">
+      <Head>
+        <title>{curNote ? curNote.note.title : 'Editor'} | writeUp</title>
+      </Head>
+
       <div className="menuStrip">
         <div className="segment">
           <button className="widget" onClick={getNotes} title="Refresh Notes">
@@ -152,7 +168,17 @@ const Home: NextPage = () => {
               <button className="widget" onClick={closeNote} title="Close Note">
                 X
               </button>
-              <button className="widget" onClick={saveNote} title="Save Note">
+              <button
+                className={
+                  noteHash === changedHash ? 'widget' : 'widget unsaved'
+                }
+                onClick={saveNote}
+                title={
+                  noteHash === changedHash
+                    ? 'Save Note'
+                    : 'Save Note | Unsaved changes'
+                }
+              >
                 S
               </button>
             </>
@@ -266,7 +292,6 @@ const Home: NextPage = () => {
                     content: e.target.value,
                   },
                 });
-                restart(getSeconds(5));
               }}
             />
             <div className="preview">
