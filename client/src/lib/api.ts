@@ -161,6 +161,7 @@ export class Api {
   }
 
   public async updateNote(note: INote): Promise<INote> {
+    note.note.tags = note.note.tags.filter((tag) => tag != '');
     const res = await this.requestBuilder({
       endpoint: 'note',
       method: 'PUT',
