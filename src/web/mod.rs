@@ -91,7 +91,7 @@ impl <T> ResponseObjectWithPayload<T> {
 
 /// Converts web-server internal json-conversion-error to one conforming to the rest of the responses
 pub fn json_error_handler(err:JsonPayloadError, _req: &HttpRequest) -> actix_web::error::Error {
-    actix_web::error::InternalError::from_response(err, error::APIError::InvalidPayloadError.gen_response()).into()
+    actix_web::error::InternalError::from_response(err, APIError::InvalidPayloadError.gen_response()).into()
 }
 
 /// Configures the web-server to add all endpoints
@@ -244,6 +244,7 @@ async fn list_notes(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Respond
         /// The level of access the current user has regarding this note
         allowance: AllowanceLevel
     }
+
     match get_user_from_request(req, db.get_ref()).await {
         Ok(user) => {
             let mut response_vector = Vec::new();

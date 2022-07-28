@@ -45,3 +45,4 @@ yarn-error.log*
 dev
 target/
 .idea
+logs/

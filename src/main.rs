@@ -40,9 +40,12 @@ use std::env;
 use std::sync::Mutex;
 use actix_cors::Cors;
 use actix_web::{App, HttpServer};
+use actix_web::middleware::Logger;
 use actix_web::web::{Data, JsonConfig};
+use log::{debug, error, info};
 use rand::distributions::Alphanumeric;
 use rand::Rng;
+use simple_on_shutdown::on_shutdown;
 use crate::db_access::connect_to_database;
 
 /// The name of the environment-variable containing the jwt-secret
@@ -54,20 +57,24 @@ const SECRET_SIZE: usize = 16;
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    println!("Starting up writeUp");
+    log4rs::init_file("./log-config.yml", Default::default()).unwrap();
+    info!("Starting up writeUp");
 
-    println!("Checking for environment-variables");
+    info!("Checking for environment-variables");
     // Set random secrets for encryption if not predefined
     if env::var(JWT_SECRET_ENV_VAR_KEY).is_err() {
         let new_secret: String = rand::thread_rng().sample_iter(&Alphanumeric)
             .take(SECRET_SIZE).map(char::from).collect();
         env::set_var(JWT_SECRET_ENV_VAR_KEY, new_secret);
     }
+    debug!("JWT-Secret: {}", env::var(JWT_SECRET_ENV_VAR_KEY).unwrap());
     if env::var(SHARE_SECRET_ENV_VAR_KEY).is_err() {
         let new_secret: String = rand::thread_rng().sample_iter(&Alphanumeric)
             .take(SECRET_SIZE).map(char::from).collect();
         env::set_var(SHARE_SECRET_ENV_VAR_KEY, new_secret);
     }
+    debug!("Share-Secret: {}", env::var(SHARE_SECRET_ENV_VAR_KEY).unwrap());
+
     // The port to listen to
     let api_port = env::var("API_PORT").unwrap_or("8080".to_string()).parse::<u16>().unwrap();
     // Database-related environment variables
@@ -77,22 +84,28 @@ async fn main() -> std::io::Result<()> {
     let db_passwd = env::var("DB_PASSWD").expect("Env-Variable 'DB_PASSWD' needs to be set");
 
     // Connect to the Database
-    println!("Connecting to Database");
+    info!("Connecting to Database");
+    debug!("Database-Address: {}:{}", db_uri, db_port);
+    debug!("Database-User: {} ({})", db_user, db_passwd);
     let db = connect_to_database((db_uri, db_port), (db_user, db_passwd)).await;
     if db.is_err() {
-        println!("Failed to establish a connection to the Database. Shutting down");
+        error!("Failed to establish a connection to the Database. Shutting down");
         return Ok(());
     }
     // Prepare the connection for use by the web-server
     let data = Data::new(Mutex::new(db.unwrap()));
 
     // Start the web-server
-    println!("Starting up webserver on port {}", api_port);
+    info!("Starting up webserver on port {}", api_port);
+    on_shutdown!(info!("Shutting down writeup"));
     HttpServer::new(move || {
         let cors = Cors::permissive();
 
         App::new()
             .wrap(cors)
+            .wrap(Logger::new("REQUEST: '%{REQ_PATH}xi' -> %s (%b B, %D ms)")
+                .custom_request_replace("REQ_PATH", |req| req.method().to_string() + " " + req.path())
+                .log_target("writeup::actix"))
             .app_data(data.clone())
             .app_data(JsonConfig::default().error_handler(web::json_error_handler))
             .service(actix_web::web::scope("/api").configure(web::handler_config))})
