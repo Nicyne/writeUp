@@ -16,6 +16,9 @@ export const UserContext = createContext<IUserContext>({});
 export const UserContextProvider: NextPage = ({ children }) => {
   const router = useRouter();
   const [user, { loading, mutate }] = useUser();
+  const mutateUser = () => {
+    mutate('user');
+  };
 
   if (
     typeof window !== 'undefined' &&
@@ -23,11 +26,23 @@ export const UserContextProvider: NextPage = ({ children }) => {
     !loading &&
     protectedRoutes.includes(router.pathname)
   ) {
-    router.push('/auth/login');
+    /**
+     * Replace is used here since it doesn't add
+     * a history entry for the source url. So if
+     * a user visits /app and gets redirected because
+     * he's not logged in only /login will appear in the history
+     * and not /app. Using router.push here causes
+     * the user to get stuck and disabling
+     * the ability to use the 'back' button to navigate
+     * to the previous page.
+     */
+    router.replace('/auth/login');
   }
 
   return (
-    <UserContext.Provider value={{ currentUser: user, loading, mutate }}>
+    <UserContext.Provider
+      value={{ currentUser: user, loading, mutate: mutateUser }}
+    >
       {children}
     </UserContext.Provider>
   );

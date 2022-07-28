@@ -7,7 +7,7 @@ const Home: NextPage = () => {
   return (
     <>
       <Head>
-        <title>WriteUp</title>
+        <title>Home | writeUp</title>
       </Head>
 
       <section aria-labelledby="landing-title" className={styles.landing}>
@@ -22,12 +22,54 @@ const Home: NextPage = () => {
         </div>
       </section>
 
-      <section className={styles.main}>
+      <section aria-labelledby="features-title" className={styles.main}>
         <div className="container">
-          <h2>Modern Technology</h2>
+          <h2 id="features-title">Features</h2>
 
           <div className={styles.cards}>
             <article className={`${styles.card} ${styles.two}`}>
+              <h3>🌍 Share your notes with your friends.</h3>
+              <p>
+                One of the primary goals of writeUp was to allow users to write
+                notes in markdown and share those notes with their friends. With
+                writeUp you can not only share your notes with everyone you
+                want, you can also make use of our public api to write your own
+                frontend if you dislike ours or miss some features.
+              </p>
+            </article>
+
+            <article className={styles.card}>
+              <h3>🔧 The power of Markdown</h3>
+              <p>
+                Use markdown to give your note the extra touch. With elements
+                like hyperlinks, todo lists, headers or code blocks you can
+                write down literally anything.
+              </p>
+            </article>
+
+            <article className={styles.card}>
+              <h3>🔮 Almost like magic</h3>
+              <p>
+                Honestly, it is magic. We even got auto saves with hash
+                comparison.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className="hero">
+        <div className="container">
+          <h3>Alpha Software - There should be a hero section here</h3>
+        </div>
+      </section>
+
+      <section aria-labelledby="technology-title" className={styles.main}>
+        <div className="container">
+          <h2 id="technology-title">Modern Technology</h2>
+
+          <div className={styles.cards}>
+            <article className={`${styles.card} ${styles.two}  ${styles.end}`}>
               <h3>🌍 Open source note taking</h3>
               <p>
                 Lorem ipsum dolor sit amet, consectetur adipisicing elit. Dicta,

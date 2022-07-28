@@ -1,20 +1,16 @@
 import type { NextPage } from 'next';
-import {
-  FunctionComponent,
-  MouseEventHandler,
-  SyntheticEvent,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { SyntheticEvent, useContext, useEffect, useRef, useState } from 'react';
+import { useTimer } from 'react-timer-hook';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
+
+// internal imports
 import type { INote, INoteShallow } from 'types';
 import { CodeBlock } from 'components';
-import { dApi } from 'lib';
-import { UserContext } from 'context';
+import { dApi, getHash } from 'lib';
+import { KeyContext, UserContext } from 'context';
+import Head from 'next/head';
 
 const closing: Record<string, string> = {
   '(': ')',
@@ -24,15 +20,39 @@ const closing: Record<string, string> = {
   '"': '"',
 };
 
+function getSeconds(seconds: number): Date {
+  const timestamp = new Date();
+  timestamp.setSeconds(timestamp.getSeconds() + seconds);
+  return timestamp;
+}
+
 const Home: NextPage = () => {
+  const { currentUser, loading } = useContext(UserContext);
+  const { keys, areKeysDown, isKeyDown } = useContext(KeyContext);
+
   const [notes, setNotes] = useState<INoteShallow[]>([]);
   const [curNote, setCurNote] = useState<INote | undefined>(undefined);
   const [newTitle, setNewTitle] = useState<string>('');
-  const { currentUser, loading } = useContext(UserContext);
 
-  const [shareCode, setShareCode] = useState<string>('');
-  const [addShare, setAddShare] = useState<string>('');
-  const [delShare, setDelShare] = useState<string>('');
+  // AUTO SAVE
+  const [noteHash, setNoteHash] = useState<string>('');
+  const [changedHash, setChangedHash] = useState<string>('');
+
+  const time = getSeconds(5);
+  const { pause, restart } = useTimer({
+    expiryTimestamp: time,
+    onExpire: async () => {
+      if (!curNote) {
+        pause();
+        return;
+      }
+      if (noteHash === changedHash) {
+        return;
+      }
+      await saveNote();
+    },
+  });
+  // AUTO SAVE
 
   const addNoteForm = useRef<HTMLFormElement>(null);
   const inputArea = useRef<HTMLTextAreaElement>(null);
@@ -44,17 +64,21 @@ const Home: NextPage = () => {
     }
   }, [currentUser, loading]);
 
+  useEffect(() => {
+    if (!curNote) return;
+    setChangedHash(getHash(inputArea?.current!.value));
+    restart(getSeconds(5));
+  }, [curNote]);
+
   const getNotes = async () => {
     const data = await dApi.getNotes();
     setNotes(data);
   };
 
   const loadNote = async (e: SyntheticEvent, id: string) => {
-    if (curNote) {
-      await saveNote(e);
-    }
-
     const data = await dApi.getNote(id);
+    setNoteHash(getHash(data.note.content));
+    setChangedHash(getHash(data.note.content));
     setCurNote(data);
   };
 
@@ -79,16 +103,18 @@ const Home: NextPage = () => {
     inputArea.current?.focus();
   };
 
-  const saveNote = async (e: SyntheticEvent) => {
+  const saveNote = async (e?: SyntheticEvent) => {
     if (!curNote) return;
     if (curNote.allowance == 'Read') return;
     await dApi.updateNote(curNote);
+    setNoteHash(getHash(curNote.note.content));
     await getNotes();
   };
 
   const deleteNote = async (e: SyntheticEvent, noteId: string) => {
     e.stopPropagation();
-    if (curNote) setCurNote(undefined);
+    if (!areKeysDown(['shift', 'x'])) return;
+    if (curNote?.note_id === noteId) setCurNote(undefined);
 
     await dApi.deleteNote(noteId);
     await getNotes();
@@ -97,6 +123,7 @@ const Home: NextPage = () => {
   const closeNote = async (e: SyntheticEvent) => {
     await saveNote(e);
     setCurNote(undefined);
+    pause();
   };
 
   const insertElement = (
@@ -114,7 +141,7 @@ const Home: NextPage = () => {
     ].join('');
     inputArea.current.focus();
     cursorPosition = cursorPosition ?? element.length;
-    inputArea.current.selectionEnd = pos + cursorPosition;
+    inputArea.current.selectionStart = pos + cursorPosition;
 
     setCurNote({
       ...curNote,
@@ -127,6 +154,10 @@ const Home: NextPage = () => {
 
   return (
     <div className="app">
+      <Head>
+        <title>{curNote ? curNote.note.title : 'Editor'} | writeUp</title>
+      </Head>
+
       <div className="menuStrip">
         <div className="segment">
           <button className="widget" onClick={getNotes} title="Refresh Notes">
@@ -137,7 +168,17 @@ const Home: NextPage = () => {
               <button className="widget" onClick={closeNote} title="Close Note">
                 X
               </button>
-              <button className="widget" onClick={saveNote} title="Save Note">
+              <button
+                className={
+                  noteHash === changedHash ? 'widget' : 'widget unsaved'
+                }
+                onClick={saveNote}
+                title={
+                  noteHash === changedHash
+                    ? 'Save Note'
+                    : 'Save Note | Unsaved changes'
+                }
+              >
                 S
               </button>
             </>

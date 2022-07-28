@@ -14,7 +14,7 @@ const Login: NextPage = () => {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (currentUser && !loading) router.push('/app');
+    if (currentUser && !loading) router.replace('/app');
   }, [currentUser, loading, router]);
 
   const register = async (e: SyntheticEvent) => {
@@ -32,7 +32,7 @@ const Login: NextPage = () => {
   return (
     <div className="login">
       <Head>
-        <title>Register | Writeup</title>
+        <title>Register | writeUp</title>
       </Head>
 
       <form onSubmit={register}>

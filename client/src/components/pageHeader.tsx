@@ -7,14 +7,9 @@ import { dApi } from 'lib';
 export const PageHeader: FunctionComponent = () => {
   const { currentUser, mutate } = useContext(UserContext);
 
-  const logout = async (e: SyntheticEvent) => {
-    await dApi.logout();
-    mutate('user');
-  };
-
   const deleteUser = async (e: SyntheticEvent) => {
     await dApi.deleteUser();
-    mutate('user');
+    mutate();
   };
 
   return (
@@ -34,7 +29,7 @@ export const PageHeader: FunctionComponent = () => {
             {currentUser ? (
               <>
                 <li>
-                  <button onClick={logout}>Logout</button>
+                  <Link href={'/auth/logout'}>Logout</Link>
                 </li>
                 <li>
                   <button onClick={deleteUser}>Delete Account</button>

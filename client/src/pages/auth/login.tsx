@@ -14,7 +14,7 @@ const Login: NextPage = () => {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (currentUser && !loading) router.push('/app');
+    if (currentUser && !loading) router.replace('/app');
   }, [currentUser, loading, router]);
 
   const login = async (e: SyntheticEvent) => {
@@ -23,7 +23,7 @@ const Login: NextPage = () => {
     try {
       await dApi.login(username, password);
 
-      await mutate('user');
+      await mutate();
       await router.push('/app');
     } catch (err: any) {
       console.error(err);
@@ -33,7 +33,7 @@ const Login: NextPage = () => {
   return (
     <div className="login">
       <Head>
-        <title>Login | Writeup</title>
+        <title>Login | writeUp</title>
       </Head>
 
       <form onSubmit={login}>
