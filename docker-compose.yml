@@ -32,6 +32,7 @@ services:
       DB_PORT: 27017
       DB_USER: root
       DB_PASSWD: example
+      #PASSWD_SECRET: randomcharacters
       #JWT_SECRET: secret
       #SHARE_SECRET: otherSecret
 
