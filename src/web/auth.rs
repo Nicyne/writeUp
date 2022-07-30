@@ -82,7 +82,8 @@ mod json_objects {
 ///     {
 ///         "success": false,
 ///         "code": 11,
-///         "message": "failed to process credentials: wrong credentials"
+///         "message": "failed to process credentials: wrong credentials",
+///         "time": "2022-04-11 12:05:57"
 ///     }
 /// ```
 #[post("/auth")]
@@ -191,7 +192,8 @@ pub async fn get_auth_status(req: HttpRequest, db: Data<Mutex<Database>>) -> imp
 ///     {
 ///         "success": false,
 ///         "code": 10,
-///         "message": "user is not logged in"
+///         "message": "user is not logged in",
+///         "time": "2022-04-11 12:05:57"
 ///     }
 /// ```
 #[allow(unused_must_use)]
