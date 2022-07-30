@@ -152,13 +152,15 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
 /// => 200
 ///     {
 ///         "success": true,
-///         "application": "writeUp",
-///         "version": "0.4.3",
-///         "db": {
-///             "type": "mongo",
-///             "version": 1.0
+///         "content": {
+///             "application": "writeUp",
+///             "version": "0.4.5",
+///             "db": {
+///                 "type": "mongo",
+///                 "version": "1.0"
+///             }
 ///         },
-///         "time": "2022-04-10 16:49:12"
+///         "time": "2022-07-30 17:53:32"
 ///     }
 /// ```
 #[get("/system")]
