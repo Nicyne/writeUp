@@ -14,6 +14,7 @@
 //!     * `DB_USER` - The user under which writeUp will use the database
 //!     * `DB_PASSWD` - The password of above's user
 //!     * `API_PORT` - The port under which to find the REST-API *[default: `8080`]*
+//!     * `PASSWD_SECRET` - The secret used to pepper password-hashes
 //!     * `JWT_SECRET` - The secret used in creating and verifying JWTs *[default: random]*
 //!     * `SHARE_SECRET` - The secret used in creating and verifying invitation-codes *[default: random]*
 //!
@@ -48,6 +49,8 @@ use rand::Rng;
 use simple_on_shutdown::on_shutdown;
 use crate::db_access::connect_to_database;
 
+/// The name of the environment-variable containing the password-secret
+pub const PASSWD_SECRET_ENV_VAR_KEY: &str = "PASSWD_SECRET";
 /// The name of the environment-variable containing the jwt-secret
 pub const JWT_SECRET_ENV_VAR_KEY: &str = "JWT_SECRET";
 /// The name of the environment-variable containing the share-secret
@@ -62,6 +65,8 @@ async fn main() -> std::io::Result<()> {
 
     info!("Checking for environment-variables");
     // Set random secrets for encryption if not predefined
+    env::var(PASSWD_SECRET_ENV_VAR_KEY).expect("Env-Variable 'PASSWD_SECRET' needs to be set");
+    debug!("Passwd-Secret: {}", env::var(PASSWD_SECRET_ENV_VAR_KEY).unwrap());
     if env::var(JWT_SECRET_ENV_VAR_KEY).is_err() {
         let new_secret: String = rand::thread_rng().sample_iter(&Alphanumeric)
             .take(SECRET_SIZE).map(char::from).collect();

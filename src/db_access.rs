@@ -1,5 +1,6 @@
 //! Contains structs and functions to access the mongodb database with
 
+use std::env;
 use mongodb::{Client, Database};
 use mongodb::bson::{Bson, doc, Document};
 use mongodb::options::ClientOptions;
@@ -9,8 +10,10 @@ use serde::de::DeserializeOwned;
 use crate::db_access::DBError::{NoDocumentFoundError, QueryError, ServerConnectionError};
 use std::str::FromStr;
 use std::sync::Mutex;
+use argonautica::{Hasher, Verifier};
 use mongodb::bson::oid::ObjectId;
 use mongodb::results::{DeleteResult, InsertOneResult};
+use crate::PASSWD_SECRET_ENV_VAR_KEY;
 
 // Database-Identifier
 /// Identifier of the database inside of a mongodb-server
@@ -60,11 +63,29 @@ pub trait DatabaseObject: Serialize + DeserializeOwned + Unpin + Send + Sync {}
 pub struct Credential {
     /// Username
     pub _id: String,
-    /// Password
-    pub passwd: String //TODO DO NOT STORE PASSWORDS IN PLAIN TEXT
+    /// Password-Hash
+    passwd_hash: String
 }
 impl DatabaseObject for Credential {}
 impl Credential {
+    /// Available space in memory per each hash
+    const HASH_MEM_SIZE: u32 = 65536; //kiB
+    /// Amount of iterations to be done per hash
+    const HASH_ITER_COUNT: u32 = 8;
+
+    /// Creates a new set of credentials
+    ///
+    /// # Arguments
+    ///
+    /// * `username` - The users name
+    /// * `passwd` - The password from which to generate a hash
+    pub fn new(username: String, passwd: &str) -> Credential {
+        Credential {
+            _id: username,
+            passwd_hash: Credential::gen_hash(passwd)
+        }
+    }
+
     /// Compares a given password with the one associated with the account
     ///
     /// # Arguments
@@ -76,13 +97,44 @@ impl Credential {
     /// ```
     /// use crate::db_access::Credential;
     ///
-    /// let cred = Credential { _id: "testUser".to_string(), passwd: "testPass".to_string() };
+    /// let hash = Credential::gen_hash("testPass");
+    /// let cred = Credential { _id: "testUser".to_string(), passwd: hash };
     ///
     /// assert!(cred.verify("testPass"));
     /// assert_eq!(cred.verify("passTest"), false);
     /// ```
     pub fn verify(&self, passwd: &str) -> bool {
-        self.passwd.eq(passwd) //TODO DO NOT COMPARE PASSWORDS IN PLAIN TEXT
+        let pepper = env::var(PASSWD_SECRET_ENV_VAR_KEY).unwrap();
+        let mut verifier = Verifier::default();
+        verifier.with_secret_key(pepper);
+        verifier.with_hash(&self.passwd_hash).with_password(passwd);
+        verifier.verify().unwrap()
+    }
+
+    ///Generates a password hash to be stored in the db
+    ///
+    /// # Arguments
+    ///
+    /// * `passwd` - A string slice containing the password to be hashed
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use crate::db_access::Credential;
+    ///
+    /// let hash = Credential::gen_hash("testPass");
+    /// let cred = Credential { _id: "testUser".to_string(), passwd: hash };
+    ///
+    /// assert!(cred.verify("testPass"));
+    /// assert_eq!(cred.verify("passTest"), false);
+    /// ```
+    fn gen_hash(passwd: &str) -> String {
+        let pepper = env::var(PASSWD_SECRET_ENV_VAR_KEY).unwrap();
+        let mut hasher = Hasher::default();
+        hasher.configure_memory_size(Credential::HASH_MEM_SIZE)
+            .configure_iterations(Credential::HASH_ITER_COUNT)
+            .with_secret_key(pepper);
+        hasher.with_password(passwd).hash().unwrap()
     }
 }
 

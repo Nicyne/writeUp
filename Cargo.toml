@@ -20,6 +20,7 @@ actix-rt = "2.6.0"
 actix-web = "4.0.1"
 actix-cors = "0.6.0"
 # Authentication
+argonautica = { version = "0.2", features = ["serde"] }
 jsonwebtoken = "8.0.1"
 chrono = "0.4.19"
 thiserror = "1.0"
