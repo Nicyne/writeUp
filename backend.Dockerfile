@@ -1,6 +1,11 @@
 # -------------------- Build Stage --------------------
 FROM rust:slim-bullseye AS builder
 
+#Add clang-dependency (argonautica)
+RUN apt-get update  \
+    && apt-get install -y clang llvm-dev libclang-dev  \
+    && rm -rf /var/lib/apt/lists/*
+
 # create a new dummy project
 RUN USER=root cargo new --bin writeUp
 WORKDIR /writeUp
