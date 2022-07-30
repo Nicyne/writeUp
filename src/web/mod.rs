@@ -163,16 +163,14 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
 /// ```
 #[get("/system")]
 async fn return_system_status() -> impl Responder {
-    return HttpResponse::Ok().json(doc! {
-        "success": true,
+    return HttpResponse::Ok().json(ResponseObjectWithPayload::new(doc! {
         "application": env!("CARGO_PKG_NAME").to_string(),
         "version": env!("CARGO_PKG_VERSION").to_string(),
         "db": {
             "type": "mongo", //TODO Read from env-var
             "version": "1.0"
-        },
-        "time": chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
-    });
+        }
+    }))
 }
 
 /// ENDPOINT: Compiles a list of all notes the current user has access to.
