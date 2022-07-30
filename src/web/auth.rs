@@ -18,7 +18,7 @@ use crate::JWT_SECRET_ENV_VAR_KEY;
 /// Time in minutes until a JWT expires
 const JWT_DURATION_MINUTES: i64 = 60;
 /// Name of the cookie carrying the JWT
-pub const JWT_TOKEN_COOKIE_NAME: &str = "writeup_jwt"; //TODO make private
+const JWT_TOKEN_COOKIE_NAME: &str = "writeup_jwt";
 
 /// Struct containing all information to be encoded in the JWT
 #[derive(Debug, Deserialize, Serialize)]
@@ -196,18 +196,21 @@ pub async fn get_auth_status(req: HttpRequest, db: Data<Mutex<Database>>) -> imp
 ///         "time": "2022-04-11 12:05:57"
 ///     }
 /// ```
-#[allow(unused_must_use)]
 #[delete("/auth")]
 pub async fn logout(req: HttpRequest) -> impl Responder {
     match get_user_id_from_request(req) {
-        Ok(_) => {
-            let mut resp = HttpResponse::Ok().json(ResponseObject::new());
-            resp.add_removal_cookie(&CookieBuilder::new(JWT_TOKEN_COOKIE_NAME, "-1")
-                .same_site(SameSite::Strict).http_only(true).finish());
-            resp
-        }
+        Ok(_) => gen_logout_response(),
         Err(e) => e.gen_response()
     }
+}
+
+#[allow(unused_must_use)]
+/// Creates a Response that revokes any form of login-verification
+pub fn gen_logout_response() -> HttpResponse {
+    let mut resp = HttpResponse::Ok().json(ResponseObject::new());
+    resp.add_removal_cookie(&CookieBuilder::new(JWT_TOKEN_COOKIE_NAME, "-1")
+        .same_site(SameSite::Strict).http_only(true).finish());
+    resp
 }
 
 /// Creates a JWT with the username as its payload

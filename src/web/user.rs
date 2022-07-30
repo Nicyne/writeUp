@@ -2,16 +2,15 @@
 
 use std::sync::Mutex;
 use actix_web::{get, delete, post, Responder, HttpRequest, HttpResponse, web};
-use actix_web::cookie::{CookieBuilder, SameSite};
 use actix_web::web::Data;
 use mongodb::bson::doc;
 use mongodb::Database;
 use crate::db_access::{Credential, CREDENTIALS, del_dbo_by_id, get_dbo_by_id, insert_dbo, Note, NOTES, update_dbo_by_id, User, USER};
 use crate::db_access::AllowanceLevel::Owner;
 use crate::db_access::DBError::{NoDocumentFoundError, QueryError};
-use crate::web::auth::{get_user_from_request, get_user_id_from_request, JWT_TOKEN_COOKIE_NAME};
+use crate::web::auth::{gen_logout_response, get_user_from_request, get_user_id_from_request};
 use crate::web::error::APIError;
-use crate::web::{ResponseObject, ResponseObjectWithPayload};
+use crate::web::ResponseObjectWithPayload;
 use crate::web::user::json_objects::{UserRequest, UserResponse};
 
 // Response-/Request-Objects
@@ -214,7 +213,6 @@ pub async fn get_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Respo
 ///         "time": "2022-04-11 12:20:19"
 ///     }
 /// ```
-#[allow(unused_must_use)]
 #[delete("/user")]
 pub async fn remove_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder { //TODO add security check or something (maybe have a body with the user-information or something, password?)
     match get_user_from_request(req, &db).await { //TODO This function borrows a lot of lines from other endpoints
@@ -265,10 +263,7 @@ pub async fn remove_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Re
             }
 
             // Log the user out
-            let mut resp = HttpResponse::Ok().json(ResponseObject::new());
-            resp.add_removal_cookie(&CookieBuilder::new(JWT_TOKEN_COOKIE_NAME, "-1")
-                .same_site(SameSite::Strict).http_only(true).finish());
-            resp
+            gen_logout_response()
         }
         Err(e) => e.gen_response()
     }
