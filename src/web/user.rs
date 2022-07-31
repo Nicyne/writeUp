@@ -33,7 +33,7 @@ mod json_objects {
         /// The identifier of the new user
         pub username: String,
         /// The password associated with the new user
-        pub passwd: String //TODO DO NOT USE PLAIN TEXT PASSWORDS
+        pub password: String
     }
 }
 
@@ -61,7 +61,7 @@ mod json_objects {
 /// POST-Request at `{api-url}/user` with no token-cookie
 ///     {
 ///         "username": "otherUser",
-///         "passwd": "otherPass"
+///         "password": "otherPass"
 ///     }
 /// => 201
 ///     {
@@ -77,7 +77,7 @@ mod json_objects {
 /// POST-Request at `{api-url}/user` with no token-cookie (username already exists in db)
 ///     {
 ///         "username": "testUser",
-///         "passwd": "otherPass"
+///         "password": "otherPass"
 ///     }
 /// => 200
 ///     {
@@ -91,7 +91,7 @@ mod json_objects {
 /// POST-Request at `{api-url}/user` with a valid token-cookie
 ///     {
 ///         "username": "otherUser",
-///         "passwd": "otherPass"
+///         "password": "otherPass"
 ///     }
 /// => 403
 ///     {
@@ -112,7 +112,7 @@ pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db: Da
     match get_dbo_by_id::<Credential>(CREDENTIALS, new_user.username.clone(), &db).await {
         Err(NoDocumentFoundError) => {
             // Prepare the new dbos
-            let creds = Credential::new(new_user.username.clone(), &new_user.passwd);
+            let creds = Credential::new(new_user.username.clone(), &new_user.password);
             let user = User {_id: new_user.username, allowances: Vec::new(), connections: Vec::new()};
 
             // Insert the new dbos

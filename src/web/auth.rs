@@ -40,7 +40,7 @@ mod json_objects {
         /// Username
         pub username: String,
         /// Password
-        pub passwd: String
+        pub password: String
     }
 }
 
@@ -64,7 +64,7 @@ mod json_objects {
 /// POST-Request at `{api-url}/auth` (valid credentials)
 ///     {
 ///         "username": "testUser",
-///         "passwd": "testPass"
+///         "password": "testPass"
 ///     }
 /// => 200 [cookie with JWT is set]
 ///     {
@@ -76,7 +76,7 @@ mod json_objects {
 /// POST-Request at `{api-url}/auth` (invalid credentials)
 ///     {
 ///         "username": "testUser",
-///         "passwd": "passTest"
+///         "password": "passTest"
 ///     }
 /// => 200
 ///     {
@@ -92,7 +92,7 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
     match get_dbo_by_id::<Credential>(CREDENTIALS, creds.username.as_str().to_string(), db.get_ref()).await {
         Ok(cred) => {
             // Verify their password
-            if cred.verify(creds.passwd.as_str()) {
+            if cred.verify(creds.password.as_str()) {
                 // Generate a JWT
                 match gen_jwt(creds.username.as_str()) {
                     Ok(jwt) => {
