@@ -33,8 +33,8 @@ FROM debian:bullseye-slim
 # copy the build artifact from the build stage
 COPY --from=builder /writeUp/target/release/writeUp .
 
-# init the port with it's default value
-ENV API_PORT=8080
+# copy the logger-configuration
+COPY ./log-config.yml .
 
 # startup backend-binary
 CMD ["./writeUp"]
