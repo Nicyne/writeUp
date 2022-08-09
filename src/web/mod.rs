@@ -29,7 +29,7 @@
 //!     * `DELETE /share/{user_id}` - Remove the relation between two user [[`remove_relation`](share::remove_relation)]
 //!     * `PUT /share/{note_id}`    - Update other users access-rights regarding the note [[`update_allowances`](share::update_allowances)]
 //!
-//! For a list of Error-Responses have a look at [[`error`](error)]
+//! For a list of Error-Responses have a look at [[`error`](mod@error)]
 
 mod note;
 mod user;
