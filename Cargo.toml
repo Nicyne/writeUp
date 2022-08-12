@@ -1,7 +1,7 @@
 [package]
 name = "writeUp"
 description = "Backend to the note-taking webapp 'writeUp'"
-version = "0.4.5"
+version = "0.4.6"
 authors = ["SNiclas <dev@s-niclas.eu>"]
 edition = "2021"
 
@@ -18,6 +18,7 @@ serde_json = "1.0"
 # Web-Server
 actix-rt = "2.6.0"
 actix-web = "4.0.1"
+actix-files = "0.6.2"
 actix-cors = "0.6.0"
 # Authentication
 argonautica = { version = "0.2", features = ["serde"] }

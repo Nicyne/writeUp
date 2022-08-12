@@ -44,5 +44,6 @@ yarn-error.log*
 # backend
 dev
 target/
-.idea
+.idea/
 logs/
+public/
