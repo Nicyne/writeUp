@@ -108,7 +108,10 @@ impl Credential {
         let mut verifier = Verifier::default();
         verifier.with_secret_key(pepper);
         verifier.with_hash(&self.passwd_hash).with_password(passwd);
-        verifier.verify().unwrap()
+        match verifier.verify() {
+            Ok(ver) => ver,
+            Err(_) => false // cant process hash
+        }
     }
 
     ///Generates a password hash to be stored in the db
@@ -299,7 +302,7 @@ pub async fn get_dbo_by_id<T: DatabaseObject>(collection: &str, id: String, db: 
 /// ```
 pub async fn insert_dbo<T: DatabaseObject>(collection: &str, obj: &T, db: &Mutex<Database>) -> Result<InsertOneResult, DBError> {
     let coll = db.lock().unwrap().collection::<T>(collection);
-    coll.insert_one(obj, None).await.map_err(|_| DBError::QueryError)
+    coll.insert_one(obj, None).await.map_err(|_| QueryError)
 }
 
 /// Attempts to update a specific document in a collection, returning an Ok if successful and an Err(DBError) if not
@@ -338,7 +341,7 @@ pub async fn update_dbo_by_id<T: DatabaseObject>(collection: &str, id: String, q
     }
     match coll.update_one(filter, query, None).await {
         Ok(res) => Ok(res.upserted_id),
-        Err(_) => Err(DBError::QueryError)
+        Err(_) => Err(QueryError)
     }
 }
 
