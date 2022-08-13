@@ -41,6 +41,7 @@ mod db_access;
 use std::env;
 use std::path::PathBuf;
 use std::sync::Mutex;
+use clap::Parser;
 use actix_cors::Cors;
 use actix_web::{App, HttpServer};
 use actix_web::middleware::Logger;
@@ -75,8 +76,22 @@ async fn index_page() -> actix_web::Result<actix_files::NamedFile> {
     Ok(actix_files::NamedFile::open(path)?)
 }
 
+#[derive(Parser)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// Start the server without accompanying web-overlay
+    #[clap(short = 'H', long, action)]
+    headless: bool,
+    /// Specify the port to be listened to (default: 8080)
+    #[clap(short = 'p', long = "port", value_parser)]
+    api_port: Option<u16>,
+}
+
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
+    // Parse all flags and parameter
+    let args = Args::parse();
+    // Initialize the logger
     log4rs::init_file("./log-config.yml", Default::default()).unwrap();
     info!("Starting up writeUp");
 
@@ -98,7 +113,10 @@ async fn main() -> std::io::Result<()> {
     debug!("Share-Secret: {}", env::var(SHARE_SECRET_ENV_VAR_KEY).unwrap());
 
     // The port to listen to
-    let api_port = env::var("API_PORT").unwrap_or("8080".to_string()).parse::<u16>().unwrap();
+    let api_port;
+    if args.api_port.is_some() { api_port = args.api_port.unwrap(); } else {
+        api_port = env::var("API_PORT").unwrap_or("8080".to_string()).parse::<u16>().unwrap();
+    }
     // Database-related environment variables
     let db_uri = env::var("DB_URI").expect("Env-Variable 'DB_URI' needs to be set"); //TODO? Combine the following four vars to one big 'CONFIG_MONGODB_URL'
     let db_port = env::var("DB_PORT").expect("Env-Variable 'DB_PORT' needs to be set");
@@ -120,6 +138,7 @@ async fn main() -> std::io::Result<()> {
     // Start the web-server
     info!("Starting up webserver on port {}", api_port);
     on_shutdown!(info!("Shutting down writeUp"));
+    if args.headless { info!("Skipping integrated webapp"); }
     let webserver = HttpServer::new(move || {
         // Configure App
         let app_base = App::new()
@@ -134,13 +153,14 @@ async fn main() -> std::io::Result<()> {
         // Register backend-service
         let app_backend = app_base.service(actix_web::web::scope(BACKEND_ROOT_ROUTE).configure(web::handler_config));
 
-        // Register frontend-service
-        let app_configured = FRONTEND_ROUTES.iter().fold(app_backend,
-                                                         |acc, &route| acc.route(route, actix_web::web::get().to(index_page)))
-            .service(actix_files::Files::new("/", FRONTEND_ROOT_PATH).index_file(FRONTEND_INDEX_FILE));
-
-        // Return configured AppFactory
-        app_configured
+        if !args.headless {
+            // Register frontend-service
+            let app_configured = FRONTEND_ROUTES.iter().fold(app_backend,
+                                                             |acc, &route| acc.route(route, actix_web::web::get().to(index_page)))
+                .service(actix_files::Files::new("/", FRONTEND_ROOT_PATH).index_file(FRONTEND_INDEX_FILE));
+            // Return configured AppFactory
+            app_configured
+        } else { app_backend }
     }).bind(("0.0.0.0", api_port))?.run();
 
     info!("Initialisation finished - listening for requests");

@@ -398,7 +398,7 @@ dependencies = [
  "cexpr",
  "cfg-if 0.1.10",
  "clang-sys",
- "clap",
+ "clap 2.34.0",
  "env_logger",
  "hashbrown 0.1.8",
  "lazy_static",
@@ -565,9 +565,48 @@ dependencies = [
  "atty",
  "bitflags",
  "strsim 0.8.0",
- "textwrap",
+ "textwrap 0.11.0",
  "unicode-width",
  "vec_map",
+]
+
+[[package]]
+name = "clap"
+version = "3.2.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29e724a68d9319343bb3328c9cc2dfde263f4b3142ee1059a9980580171c954b"
+dependencies = [
+ "atty",
+ "bitflags",
+ "clap_derive",
+ "clap_lex",
+ "indexmap",
+ "once_cell",
+ "strsim 0.10.0",
+ "termcolor",
+ "textwrap 0.15.0",
+]
+
+[[package]]
+name = "clap_derive"
+version = "3.2.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13547f7012c01ab4a0e8f8967730ada8f9fdf419e8b6c792788f39cf4e46eefa"
+dependencies = [
+ "heck",
+ "proc-macro-error",
+ "proc-macro2 1.0.36",
+ "quote 1.0.15",
+ "syn",
+]
+
+[[package]]
+name = "clap_lex"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2850f2f5a82cbf437dd5af4d49848fbdfc27c157c3d010345776f952765261c5"
+dependencies = [
+ "os_str_bytes",
 ]
 
 [[package]]
@@ -1491,9 +1530,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.10.0"
+version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87f3e037eac156d1775da914196f0f37741a274155e34a0b7e427c35d2a2ecb9"
+checksum = "18a6dbe30758c9f83eb00cbea4ac95966305f5a7772f3f42ebfc7fc7eddbd8e1"
 
 [[package]]
 name = "opaque-debug"
@@ -1519,6 +1558,12 @@ dependencies = [
  "log",
  "winapi",
 ]
+
+[[package]]
+name = "os_str_bytes"
+version = "6.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "648001efe5d5c0102d8cea768e348da85d90af8ba91f0bea908f157951493cd4"
 
 [[package]]
 name = "parking_lot"
@@ -1621,6 +1666,30 @@ name = "ppv-lite86"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eb9f9e6e233e5c4a35559a617bf40a4ec447db2e84c20b55a6f83167b7e57872"
+
+[[package]]
+name = "proc-macro-error"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da25490ff9892aab3fcf7c36f08cfb902dd3e71ca0f9f9517bea02a73a5ce38c"
+dependencies = [
+ "proc-macro-error-attr",
+ "proc-macro2 1.0.36",
+ "quote 1.0.15",
+ "syn",
+ "version_check 0.9.4",
+]
+
+[[package]]
+name = "proc-macro-error-attr"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1be40180e52ecc98ad80b184934baf3d0d29f979574e439af5a55274b35f869"
+dependencies = [
+ "proc-macro2 1.0.36",
+ "quote 1.0.15",
+ "version_check 0.9.4",
+]
 
 [[package]]
 name = "proc-macro2"
@@ -2261,6 +2330,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "textwrap"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1141d4d61095b28419e22cb0bbf02755f5e54e0526f97f1e3d1d160e60885fb"
+
+[[package]]
 name = "thiserror"
 version = "1.0.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2790,7 +2865,7 @@ dependencies = [
 
 [[package]]
 name = "writeUp"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "actix-cors",
  "actix-files",
@@ -2798,6 +2873,7 @@ dependencies = [
  "actix-web",
  "argonautica",
  "chrono",
+ "clap 3.2.17",
  "futures 0.3.21",
  "jsonwebtoken",
  "log",
