@@ -64,10 +64,10 @@ const SECRET_SIZE: usize = 16;
 /// Root of all backend-requests
 const BACKEND_ROOT_ROUTE: &str = "/api";
 /// Internal path to the root of all static web-files
-#[cfg(target_os = "windows")]
+#[cfg(target_family = "windows")]
 const FRONTEND_ROOT_PATH: &str = ".\\public";
 /// Internal path to the root of all static web-files
-#[cfg(target_os = "linux")]
+#[cfg(target_family = "unix")]
 const FRONTEND_ROOT_PATH: &str = "./public";
 /// Frontend index-file
 const FRONTEND_INDEX_FILE: &str = "index.html";
