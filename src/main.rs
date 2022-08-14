@@ -39,7 +39,7 @@ mod web;
 mod db_access;
 
 use std::env;
-use std::path::PathBuf;
+use std::path::{MAIN_SEPARATOR, Path};
 use std::sync::Mutex;
 use clap::Parser;
 use actix_cors::Cors;
@@ -64,6 +64,10 @@ const SECRET_SIZE: usize = 16;
 /// Root of all backend-requests
 const BACKEND_ROOT_ROUTE: &str = "/api";
 /// Internal path to the root of all static web-files
+#[cfg(target_os = "windows")]
+const FRONTEND_ROOT_PATH: &str = ".\\public";
+/// Internal path to the root of all static web-files
+#[cfg(target_os = "linux")]
 const FRONTEND_ROOT_PATH: &str = "./public";
 /// Frontend index-file
 const FRONTEND_INDEX_FILE: &str = "index.html";
@@ -72,7 +76,7 @@ const FRONTEND_ROUTES: [&str; 5] = ["/", "/app", "/login", "/logout", "/register
 
 /// Returns the index-file
 async fn index_page() -> actix_web::Result<actix_files::NamedFile> {
-    let path = PathBuf::from(format!("{}/{}", FRONTEND_ROOT_PATH, FRONTEND_INDEX_FILE));
+    let path = Path::new(FRONTEND_ROOT_PATH).join(FRONTEND_INDEX_FILE);
     Ok(actix_files::NamedFile::open(path)?)
 }
 
@@ -92,7 +96,7 @@ async fn main() -> std::io::Result<()> {
     // Parse all flags and parameter
     let args = Args::parse();
     // Initialize the logger
-    log4rs::init_file("./log-config.yml", Default::default()).unwrap();
+    log4rs::init_file(format!(".{}log-config.yml", MAIN_SEPARATOR), Default::default()).unwrap();
     info!("Starting up writeUp");
 
     info!("Checking for environment-variables");
