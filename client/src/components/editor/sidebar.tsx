@@ -1,77 +1,24 @@
-import {
-  FunctionComponent,
-  SyntheticEvent,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from 'react';
-import { EditorContext, UserContext } from 'context';
-import { dApi } from 'lib';
+import { useEditor } from 'hooks/useEditor';
+import { useTranslation } from 'react-i18next';
+import styles from 'styles/components/editor/sidebar.module.scss';
+import { SidebarElement } from './sidebarElement';
 
-export const Sidebar: FunctionComponent = () => {
-  const { currentUser, loading } = useContext(UserContext);
-  const { setNote, notes, setNotes } = useContext(EditorContext);
-  const [tags, setTags] = useState<string[]>([]);
-
-  useEffect(() => {
-    let tags = notes.flatMap((note) => note.tags);
-    let uniqueTags = tags.filter((tag, index) => tags.indexOf(tag) == index);
-    setTags(uniqueTags);
-  }, [notes]);
-
-  const getNotes = useCallback(async () => {
-    const data = await dApi.getNotes();
-    setNotes(data);
-  }, [setNotes]);
-
-  const loadNote = async (id: string) => {
-    const data = await dApi.getNote(id);
-    setNote(data);
-  };
-
-  const deleteNote = async (e: SyntheticEvent, id: string) => {
-    e.stopPropagation();
-    await dApi.deleteNote(id);
-    getNotes();
-  };
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!currentUser && !loading) return;
-    getNotes();
-  }, [currentUser, loading, getNotes]);
+export function Sidebar() {
+  const { notes, refs } = useEditor();
+  const [t] = useTranslation();
 
   return (
-    <div>
-      {tags.map((tag) => (
-        <div key={tag}>
-          <h2>{tag}</h2>
-          <ul>
-            {notes.map((note) => {
-              if (note.tags.includes(tag))
-                return (
-                  <li
-                    key={note.note_id}
-                    onClick={(e) => loadNote(note.note_id)}
-                  >
-                    {note.title}
-                    <button onClick={(e) => deleteNote(e, note.note_id)}>
-                      X
-                    </button>
-                  </li>
-                );
-            })}
-          </ul>
-        </div>
-      ))}
-      <h2>All</h2>
-      {notes.map((note) => (
-        <li key={note.note_id} onClick={(e) => loadNote(note.note_id)}>
-          {note.title}
-          <button onClick={(e) => deleteNote(e, note.note_id)}>X</button>
+    <article className={styles['sidebar']}>
+      <ul className={styles['noteList']}>
+        <li>
+          <button onClick={() => refs.newNoteDialog?.current?.showModal()}>
+            {t('notes.new')}
+          </button>
         </li>
-      ))}
-    </div>
+        {notes.map((note) => (
+          <SidebarElement note={note} key={note.note_id} />
+        ))}
+      </ul>
+    </article>
   );
-};
+}

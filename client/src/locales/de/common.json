@@ -1,0 +1,50 @@
+{
+  "nav": {
+    "imprint": "Impressum",
+    "about": "Über uns"
+  },
+  "notes": {
+    "deleteTooltip": "Notiz löschen",
+    "selectNote": "Wähle eine Notiz aus.",
+    "noNoteBody": "Leere Notiz.",
+    "save": "Speichern",
+    "delete": "Löschen",
+    "deleteTitle": "Notiz Löschen",
+    "deleteWarning": "Dieses Prozess kann nicht umgekehrt werden.",
+    "edit": "Bearbeiten",
+    "editNote": "Notiz bearbeiten",
+    "new": "Neu",
+    "newNote": "Neue Notiz",
+    "create": "Erstellen",
+    "cancel": "Abbrechen",
+    "title": "Titel",
+    "content": "Inhalt",
+    "tags": "Tags"
+  },
+  "auth": {
+    "username": "Nutzername",
+    "password": "Passwort",
+    "passwordConfirm": "Passwort bestätigen",
+    "login": {
+      "name": "Anmelden",
+      "action": "Anmelden",
+      "rememberMe": "Angemeldet bleiben"
+    },
+    "logout": {
+      "name": "Abmelden",
+      "messageSuccess": "Du wurdest erfolgreich abgemeldet!",
+      "messageRedirectIn": "Du wirst in {{count}} {{unit}} weitergeleitet."
+    },
+    "signup": {
+      "name": "Registrieren",
+      "action": "Registrieren"
+    }
+  },
+  "time": {
+    "second": "Sekunde",
+    "seconds": "Sekunden"
+  },
+  "error": {
+    "404": "Seite {{page}} nicht gefunden."
+  }
+}

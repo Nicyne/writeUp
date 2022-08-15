@@ -1,53 +1,51 @@
+import { useAuth } from 'hooks/useAuth';
+import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import styles from 'styles/components/pageHeader.module.scss';
-import { FunctionComponent, SyntheticEvent, useContext } from 'react';
-import { UserContext } from '../context/userContext';
-import Link from 'next/link';
-import { dApi } from 'lib';
 
-export const PageHeader: FunctionComponent = () => {
-  const { currentUser, mutate } = useContext(UserContext);
-
-  const deleteUser = async (e: SyntheticEvent) => {
-    await dApi.deleteUser();
-    mutate();
-  };
+export function PageHeader() {
+  const { user } = useAuth();
+  const [t] = useTranslation();
 
   return (
-    <header className={styles.pageHeader}>
-      <div className="container">
-        <nav>
-          <div className={styles.logo}>
-            <Link href={'/'}>writeUp!</Link>
-          </div>
-          <ul className={styles.navigation}>
+    <header className={styles['header']}>
+      <nav className={styles['nav']}>
+        <ul className={styles['list']}>
+          <li>
+            <Link to="/">writeUp</Link>
+          </li>
+          {user && (
             <li>
-              <Link href={'/'}>Home</Link>
+              <Link to="/app">App</Link>
             </li>
-            <li>
-              <Link href={'/app'}>App</Link>
-            </li>
-            {currentUser ? (
-              <>
-                <li>
-                  <Link href={'/auth/logout'}>Logout</Link>
-                </li>
-                <li>
-                  <button onClick={deleteUser}>Delete Account</button>
-                </li>
-              </>
-            ) : (
-              <>
-                <li>
-                  <Link href={'/auth/login'}>Login</Link>
-                </li>
-                <li>
-                  <Link href={'/auth/register'}>Register</Link>
-                </li>
-              </>
-            )}
-          </ul>
-        </nav>
-      </div>
+          )}
+        </ul>
+        <ul>
+          {user ? (
+            <>
+              <li className={styles['user']}>{user.username}</li>
+              <li>
+                <Link to="/logout" role="button">
+                  {t('auth.logout.name')}
+                </Link>
+              </li>
+            </>
+          ) : (
+            <>
+              <li>
+                <Link to="/login" className="secondary" role="button">
+                  {t('auth.login.name')}
+                </Link>
+              </li>
+              <li>
+                <Link to="/signup" role="button">
+                  {t('auth.signup.name')}
+                </Link>
+              </li>
+            </>
+          )}
+        </ul>
+      </nav>
     </header>
   );
-};
+}

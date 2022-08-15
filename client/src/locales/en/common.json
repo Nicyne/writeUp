@@ -1,0 +1,50 @@
+{
+  "nav": {
+    "imprint": "Imprint",
+    "about": "About us"
+  },
+  "notes": {
+    "deleteTooltip": "Delete note",
+    "selectNote": "Select a note.",
+    "noNoteBody": "Empty Note.",
+    "save": "Save",
+    "delete": "Delete",
+    "deleteTitle": "Delete note",
+    "deleteWarning": "This process can not be undone.",
+    "edit": "Edit",
+    "editNote": "Edit Note",
+    "new": "New",
+    "newNote": "New note",
+    "create": "Create",
+    "cancel": "Cancel",
+    "title": "Title",
+    "content": "Content",
+    "tags": "Tags"
+  },
+  "auth": {
+    "username": "Username",
+    "password": "Password",
+    "passwordConfirm": "Confirm Password",
+    "login": {
+      "name": "Sign In",
+      "action": "Login",
+      "rememberMe": "Remember me"
+    },
+    "logout": {
+      "name": "Logout",
+      "messageSuccess": "You were successfully logged out!",
+      "messageRedirectIn": "You'll get redirected in {{count}} {{unit}}."
+    },
+    "signup": {
+      "name": "Sign Up",
+      "action": "Sign Up"
+    }
+  },
+  "time": {
+    "second": "second",
+    "seconds": "seconds"
+  },
+  "error": {
+    "404": "Page {{page}} not found."
+  }
+}
