@@ -24,6 +24,7 @@
 //!     > Checking for environment-variables
 //!     > Connecting to Database
 //!     > Starting up webserver on port XXXX
+//!     > Initialisation finished - listening for requests
 //!     ```
 //!
 //! 4. Verify it is running by making a request to `GET /api/system`
@@ -38,7 +39,9 @@ mod web;
 mod db_access;
 
 use std::env;
+use std::path::{MAIN_SEPARATOR, Path};
 use std::sync::Mutex;
+use clap::Parser;
 use actix_cors::Cors;
 use actix_web::{App, HttpServer};
 use actix_web::middleware::Logger;
@@ -58,15 +61,48 @@ pub const SHARE_SECRET_ENV_VAR_KEY: &str = "SHARE_SECRET";
 /// The default length at which a given secret-string gets generated
 const SECRET_SIZE: usize = 16;
 
+/// Root of all backend-requests
+const BACKEND_ROOT_ROUTE: &str = "/api";
+/// Internal path to the root of all static web-files
+#[cfg(target_family = "windows")]
+const FRONTEND_ROOT_PATH: &str = ".\\public";
+/// Internal path to the root of all static web-files
+#[cfg(target_family = "unix")]
+const FRONTEND_ROOT_PATH: &str = "./public";
+/// Frontend index-file
+const FRONTEND_INDEX_FILE: &str = "index.html";
+/// All routes the frontend serves
+const FRONTEND_ROUTES: [&str; 5] = ["/", "/app", "/login", "/logout", "/register"];
+
+/// Returns the index-file
+async fn index_page() -> actix_web::Result<actix_files::NamedFile> {
+    let path = Path::new(FRONTEND_ROOT_PATH).join(FRONTEND_INDEX_FILE);
+    Ok(actix_files::NamedFile::open(path)?)
+}
+
+#[derive(Parser)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// Start the server without accompanying web-overlay
+    #[clap(short = 'H', long, action)]
+    headless: bool,
+    /// Specify the port to be listened to (default: 8080)
+    #[clap(short = 'p', long = "port", value_parser)]
+    api_port: Option<u16>,
+}
+
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    log4rs::init_file("./log-config.yml", Default::default()).unwrap();
+    // Parse all flags and parameter
+    let args = Args::parse();
+    // Initialize the logger
+    log4rs::init_file(format!(".{}log-config.yml", MAIN_SEPARATOR), Default::default()).unwrap();
     info!("Starting up writeUp");
 
     info!("Checking for environment-variables");
-    // Set random secrets for encryption if not predefined
     env::var(PASSWD_SECRET_ENV_VAR_KEY).expect("Env-Variable 'PASSWD_SECRET' needs to be set");
     debug!("Passwd-Secret: {}", env::var(PASSWD_SECRET_ENV_VAR_KEY).unwrap());
+    // Set random secrets for encryption if not predefined
     if env::var(JWT_SECRET_ENV_VAR_KEY).is_err() {
         let new_secret: String = rand::thread_rng().sample_iter(&Alphanumeric)
             .take(SECRET_SIZE).map(char::from).collect();
@@ -81,7 +117,10 @@ async fn main() -> std::io::Result<()> {
     debug!("Share-Secret: {}", env::var(SHARE_SECRET_ENV_VAR_KEY).unwrap());
 
     // The port to listen to
-    let api_port = env::var("API_PORT").unwrap_or("8080".to_string()).parse::<u16>().unwrap();
+    let api_port;
+    if args.api_port.is_some() { api_port = args.api_port.unwrap(); } else {
+        api_port = env::var("API_PORT").unwrap_or("8080".to_string()).parse::<u16>().unwrap();
+    }
     // Database-related environment variables
     let db_uri = env::var("DB_URI").expect("Env-Variable 'DB_URI' needs to be set"); //TODO? Combine the following four vars to one big 'CONFIG_MONGODB_URL'
     let db_port = env::var("DB_PORT").expect("Env-Variable 'DB_PORT' needs to be set");
@@ -102,19 +141,32 @@ async fn main() -> std::io::Result<()> {
 
     // Start the web-server
     info!("Starting up webserver on port {}", api_port);
-    on_shutdown!(info!("Shutting down writeup"));
-    HttpServer::new(move || {
-        let cors = Cors::permissive();
-
-        App::new()
-            .wrap(cors)
-            .wrap(Logger::new("REQUEST: '%{REQ_PATH}xi' -> %s (%b B, %D ms)")
+    on_shutdown!(info!("Shutting down writeUp"));
+    if args.headless { info!("Skipping integrated webapp"); }
+    let webserver = HttpServer::new(move || {
+        // Configure App
+        let app_base = App::new()
+            .wrap(Cors::permissive())
+            .wrap(Logger::new("%{REQ_SERVICE}xi: '%{REQ_PATH}xi' -> %s (%b B, %D ms)")
                 .custom_request_replace("REQ_PATH", |req| req.method().to_string() + " " + req.path())
+                .custom_request_replace("REQ_SERVICE", |req| if req.path().starts_with(BACKEND_ROOT_ROUTE) { "API" } else { "WEB" }.parse().unwrap())
                 .log_target("writeup::actix"))
             .app_data(data.clone())
-            .app_data(JsonConfig::default().error_handler(web::json_error_handler))
-            .service(actix_web::web::scope("/api").configure(web::handler_config))})
-        .bind(("0.0.0.0", api_port))?
-        .run()
-        .await
+            .app_data(JsonConfig::default().error_handler(web::json_error_handler));
+
+        // Register backend-service
+        let app_backend = app_base.service(actix_web::web::scope(BACKEND_ROOT_ROUTE).configure(web::handler_config));
+
+        if !args.headless {
+            // Register frontend-service
+            let app_configured = FRONTEND_ROUTES.iter().fold(app_backend,
+                                                             |acc, &route| acc.route(route, actix_web::web::get().to(index_page)))
+                .service(actix_files::Files::new("/", FRONTEND_ROOT_PATH).index_file(FRONTEND_INDEX_FILE));
+            // Return configured AppFactory
+            app_configured
+        } else { app_backend }
+    }).bind(("0.0.0.0", api_port))?.run();
+
+    info!("Initialisation finished - listening for requests");
+    webserver.await
 }

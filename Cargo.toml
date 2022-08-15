@@ -1,14 +1,15 @@
 [package]
 name = "writeUp"
-description = "Backend to the note-taking webapp 'writeUp'"
-version = "0.4.5"
-authors = ["SNiclas <dev@s-niclas.eu>"]
+description = "Note-Manager optimized for performance and flexibility"
+version = "0.4.7"
+authors = ["Niclas Schmidt <dev@s-niclas.eu>", "Dimitri Kaiser <dev@darkyne.com>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 # Basics
+clap = {version = "3.2.16", features = ["derive"] }
 simple_on_shutdown = "1.0.0"
 log = "0.4.16"
 log4rs = "1.0.0"
@@ -18,6 +19,7 @@ serde_json = "1.0"
 # Web-Server
 actix-rt = "2.6.0"
 actix-web = "4.0.1"
+actix-files = "0.6.2"
 actix-cors = "0.6.0"
 # Authentication
 argonautica = { version = "0.2", features = ["serde"] }

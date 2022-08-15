@@ -14,11 +14,11 @@ services:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: example
 
-  writeUpBackend:
+  writeUp:
     build:
       context: ./
-      dockerfile: ./backend.Dockerfile
-    image: writeup-backend
+      dockerfile: ./Dockerfile
+    image: writeup
     restart: unless-stopped
     networks:
       - writeup
