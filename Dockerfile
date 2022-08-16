@@ -22,7 +22,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY client/. .
 
 # build the project
-RUN yarn export
+RUN yarn build
 
 # -------------------- Backend | Build Stage --------------------
 FROM rust:slim-bullseye AS backend-builder
@@ -58,7 +58,7 @@ FROM debian:bullseye-slim
 
 # copy the build artifacts from the build stages
 COPY --from=backend-builder /writeUp/target/release/writeUp .
-COPY --from=frontend-builder /app/dist ./public
+COPY --from=frontend-builder /app/build ./public
 
 # copy the logger-configuration
 COPY ./log-config.yml .
