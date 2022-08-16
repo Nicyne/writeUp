@@ -43,7 +43,9 @@ use std::path::{MAIN_SEPARATOR, Path};
 use std::sync::Mutex;
 use clap::Parser;
 use actix_cors::Cors;
+use actix_files::NamedFile;
 use actix_web::{App, HttpServer};
+use actix_web::dev::{fn_service, ServiceRequest, ServiceResponse};
 use actix_web::middleware::Logger;
 use actix_web::web::{Data, JsonConfig};
 use log::{debug, error, info};
@@ -71,14 +73,6 @@ const FRONTEND_ROOT_PATH: &str = ".\\public";
 const FRONTEND_ROOT_PATH: &str = "./public";
 /// Frontend index-file
 const FRONTEND_INDEX_FILE: &str = "index.html";
-/// All routes the frontend serves
-const FRONTEND_ROUTES: [&str; 5] = ["/", "/app", "/login", "/logout", "/register"];
-
-/// Returns the index-file
-async fn index_page() -> actix_web::Result<actix_files::NamedFile> {
-    let path = Path::new(FRONTEND_ROOT_PATH).join(FRONTEND_INDEX_FILE);
-    Ok(actix_files::NamedFile::open(path)?)
-}
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -159,9 +153,16 @@ async fn main() -> std::io::Result<()> {
 
         if !args.headless {
             // Register frontend-service
-            let app_configured = FRONTEND_ROUTES.iter().fold(app_backend,
-                                                             |acc, &route| acc.route(route, actix_web::web::get().to(index_page)))
-                .service(actix_files::Files::new("/", FRONTEND_ROOT_PATH).index_file(FRONTEND_INDEX_FILE));
+            let app_configured = app_backend
+                .service(actix_files::Files::new("/", FRONTEND_ROOT_PATH)
+                .index_file(FRONTEND_INDEX_FILE).default_handler(fn_service(
+                    |req: ServiceRequest| async {
+                        let (req, _) = req.into_parts();
+                        let path = Path::new(FRONTEND_ROOT_PATH).join(FRONTEND_INDEX_FILE);
+                        let file = NamedFile::open_async(path).await?;
+                        let res = file.into_response(&req);
+                        Ok(ServiceResponse::new(req, res))
+                    })));
             // Return configured AppFactory
             app_configured
         } else { app_backend }
