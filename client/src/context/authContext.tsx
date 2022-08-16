@@ -113,6 +113,7 @@ export function AuthContextProvider(props: PropsWithChildren) {
 
     if (!res.data.success) {
       setUser(undefined);
+      setLoading(false);
       if (res.status === 200) return;
       console.error(res);
       return;
@@ -120,6 +121,7 @@ export function AuthContextProvider(props: PropsWithChildren) {
 
     if (!res.data.content) {
       console.error('No user object present on api response data');
+      setLoading(false);
       return;
     }
     setUser(res.data.content);
