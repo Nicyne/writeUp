@@ -44,32 +44,37 @@ export function NewNoteForm() {
     refs.newNoteDialog?.current?.close();
   };
 
+  const click = (e: SyntheticEvent) => {
+    e.stopPropagation();
+    const el = e.target as HTMLElement;
+    if (el.id === 'newNoteDialog') {
+      cancel(e);
+    }
+  };
+
   return (
-    <dialog ref={refs.newNoteDialog}>
-      <div onClick={cancel} className="overlay"></div>
-      <div className="content">
-        <article className="form">
-          <header>
-            <h1>{t('notes.newNote')}</h1>
-          </header>
-          <form ref={formRef} onSubmit={createNote}>
-            <label htmlFor="title">
-              {t('notes.title')}
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </label>
-            <span className="flex">
-              <button type="submit">{t('notes.create')}</button>
-              <button className="secondary" onClick={cancel}>
-                {t('notes.cancel')}
-              </button>
-            </span>
-          </form>
-        </article>
-      </div>
+    <dialog onClick={click} ref={refs.newNoteDialog} id="newNoteDialog">
+      <article className="form">
+        <header>
+          <h1>{t('notes.newNote')}</h1>
+        </header>
+        <form ref={formRef} onSubmit={createNote}>
+          <label htmlFor="title">
+            {t('notes.title')}
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </label>
+          <span className="flex">
+            <button type="submit">{t('notes.create')}</button>
+            <button className="secondary" onClick={cancel}>
+              {t('notes.cancel')}
+            </button>
+          </span>
+        </form>
+      </article>
     </dialog>
   );
 }

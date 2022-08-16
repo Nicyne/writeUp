@@ -33,35 +33,37 @@ export function SidebarElement(props: IProps) {
   };
 
   return (
-    <li
-      key={note.note_id}
-      className={`${styles['note']} ${
-        note.note_id === currentNote?.note_id ? styles['active'] : ''
-      }`}
-      onClick={() => selectNote(note.note_id)}
-    >
-      <span>
-        {note.title}
-        <button
-          className={styles['button']}
-          title={t('notes.deleteTooltip')}
-          onClick={(e) => deleteNote(e, note.note_id)}
-        >
-          &#x2715;
-        </button>
-      </span>
-      {note.tags.length !== 0 ? (
+    <>
+      <li
+        key={note.note_id}
+        className={`${styles['note']} ${
+          note.note_id === currentNote?.note_id ? styles['active'] : ''
+        }`}
+        onClick={() => selectNote(note.note_id)}
+      >
         <span>
-          <ul className={styles['tags']}>
-            {note.tags.map((tag) => (
-              <li key={tag}>{tag}</li>
-            ))}
-          </ul>
+          {note.title}
+          <button
+            className={styles['button']}
+            title={t('notes.deleteTooltip')}
+            onClick={(e) => deleteNote(e, note.note_id)}
+          >
+            &#x2715;
+          </button>
         </span>
-      ) : (
-        <></>
-      )}
+        {note.tags.length !== 0 ? (
+          <span>
+            <ul className={styles['tags']}>
+              {note.tags.map((tag) => (
+                <li key={tag}>{tag}</li>
+              ))}
+            </ul>
+          </span>
+        ) : (
+          <></>
+        )}
+      </li>
       <ConfirmDeletionDialog ref={deletionDialog} id={note.note_id} />
-    </li>
+    </>
   );
 }

@@ -31,27 +31,32 @@ export const ConfirmDeletionDialog = forwardRef((props: IDialogProps, ref) => {
     dialogRef.current.close();
   };
 
+  const click = (e: SyntheticEvent) => {
+    e.stopPropagation();
+    const el = e.target as HTMLElement;
+    if (el.id === 'deletionDialog') {
+      cancel(e);
+    }
+  };
+
   return (
-    <dialog ref={dialogRef}>
-      <div onClick={cancel} className="overlay"></div>
-      <div className="content">
-        <article className="form">
-          <header>
-            <h1>{t('notes.deleteTitle')}</h1>
-            <p>{t('notes.deleteWarning')}</p>
-          </header>
-          <form onSubmit={finallyDeleteNote}>
-            <span className="flex-end">
-              <button type="submit" className="danger">
-                {t('notes.delete')}
-              </button>
-              <button onClick={cancel} className="secondary">
-                {t('notes.cancel')}
-              </button>
-            </span>
-          </form>
-        </article>
-      </div>
+    <dialog onClick={click} ref={dialogRef} id="deletionDialog">
+      <article className="form">
+        <header>
+          <h1>{t('notes.deleteTitle')}</h1>
+          <p>{t('notes.deleteWarning')}</p>
+        </header>
+        <form onSubmit={finallyDeleteNote}>
+          <span className="flex-end">
+            <button type="submit" className="danger">
+              {t('notes.delete')}
+            </button>
+            <button onClick={cancel} className="secondary">
+              {t('notes.cancel')}
+            </button>
+          </span>
+        </form>
+      </article>
     </dialog>
   );
 });
