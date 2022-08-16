@@ -1,26 +1,15 @@
 import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from 'hooks';
-
-interface IInputValue {
-  value: string;
-  invalid: boolean;
-  error: string;
-}
-
-function emptyInputValue(): IInputValue {
-  return {
-    value: '',
-    invalid: false,
-    error: '',
-  };
-}
+import { useTranslation } from 'react-i18next';
+import { emptyInputValue, IInputValue } from 'types';
 
 export function SignUp() {
   const { signUp } = useAuth();
   const [username, setUsername] = useState(emptyInputValue());
   const [password, setPassword] = useState(emptyInputValue());
   const [confirmPassword, setConfirmPassword] = useState(emptyInputValue());
+  const [t] = useTranslation();
   const navigate = useNavigate();
 
   const submit = async (e: FormEvent) => {
@@ -54,7 +43,10 @@ export function SignUp() {
     let error = '';
     if (value.length < minLength && value.length !== 0) {
       invalid = true;
-      error = `${name} must contain ${minLength} characters or more.`;
+      error = t('error.tooShort', {
+        name: t('auth.' + name.toLowerCase()),
+        length: minLength,
+      });
     }
     setter({ value, invalid, error });
   };
@@ -64,16 +56,16 @@ export function SignUp() {
       <div className="center">
         <article className="form">
           <header>
-            <h1>Sign up</h1>
+            <h1>{t('auth.signup.name')}</h1>
           </header>
           <form onSubmit={submit}>
             <label htmlFor="username">
-              Username
+              {t('auth.username')}
               <input
                 type="text"
-                name="username"
+                name={t('auth.username')}
                 id="username"
-                placeholder="Username"
+                placeholder={t('auth.username')}
                 spellCheck="false"
                 pattern=".{3,}"
                 aria-invalid={username.invalid}
@@ -86,11 +78,12 @@ export function SignUp() {
             </label>
 
             <label htmlFor="password">
-              Password
+              {t('auth.password')}
               <input
                 type="password"
-                name="password"
-                placeholder="Password"
+                name={t('auth.password')}
+                id="password"
+                placeholder={t('auth.password')}
                 spellCheck="false"
                 pattern=".{8,}"
                 aria-invalid={password.invalid}
@@ -103,12 +96,12 @@ export function SignUp() {
             </label>
 
             <label htmlFor="confirm_password">
-              Confirm Password
+              {t('auth.confirmPassword')}
               <input
                 type="password"
-                name="confirm_password"
+                name={t('auth.confirmPassword')}
                 id="confirm_password"
-                placeholder="Confirm Password"
+                placeholder={t('auth.confirmPassword')}
                 spellCheck="false"
                 pattern=".{8,}"
                 aria-invalid={confirmPassword.invalid}
@@ -121,7 +114,7 @@ export function SignUp() {
             </label>
 
             <button type="submit" className="w-full">
-              Sign up
+              {t('auth.signup.action')}
             </button>
           </form>
         </article>

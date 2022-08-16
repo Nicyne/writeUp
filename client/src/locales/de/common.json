@@ -24,7 +24,7 @@
   "auth": {
     "username": "Nutzername",
     "password": "Passwort",
-    "passwordConfirm": "Passwort bestätigen",
+    "confirmPassword": "Passwort bestätigen",
     "login": {
       "name": "Anmelden",
       "action": "Anmelden",
@@ -45,6 +45,8 @@
     "seconds": "Sekunden"
   },
   "error": {
-    "404": "Seite {{page}} nicht gefunden."
+    "404": "Seite {{page}} nicht gefunden.",
+    "tooShort": "{{name}} muss mindestens {{length}} oder mehr Zeichen enthalten.",
+    "passwordMismatch": "Passwörter stimmen nicht überein"
   }
 }
