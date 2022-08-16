@@ -9,6 +9,7 @@
   "license": "MIT",
   "proxy": "http://localhost:8080",
   "private": true,
+  "licenses": [{ "type": "MIT" }],
   "scripts": {
     "dev": "react-scripts start",
     "build": "react-scripts build",
