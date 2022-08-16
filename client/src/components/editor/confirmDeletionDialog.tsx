@@ -1,4 +1,4 @@
-import { useEditor } from 'hooks/useEditor';
+import { useEditor } from 'hooks';
 import { FormEvent, forwardRef, RefObject, SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 

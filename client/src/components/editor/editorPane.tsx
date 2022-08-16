@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useEditor } from 'hooks/useEditor';
+import { useEditor } from 'hooks';
 import { FormEvent, SyntheticEvent, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from 'styles/components/editor/editorPane.module.scss';
@@ -30,6 +30,7 @@ export function EditorPane() {
   };
 
   const cancel = (e: SyntheticEvent) => {
+    console.log(e);
     e.stopPropagation();
     e.preventDefault();
     refs.bodyEditor?.current?.close();

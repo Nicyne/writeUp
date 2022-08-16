@@ -9,6 +9,7 @@ export interface IResponse {
 
 export interface IAuthContext {
   user?: IUser;
+  loading: boolean;
   login: (username: string, password: string) => Promise<IResponse>;
   signUp: (username: string, password: string) => Promise<IResponse>;
   logout: () => Promise<void>;
@@ -16,6 +17,7 @@ export interface IAuthContext {
 }
 
 export const AuthContext = createContext<IAuthContext>({
+  loading: false,
   login: async () => {
     return { success: false, message: '' };
   },
@@ -28,6 +30,7 @@ export const AuthContext = createContext<IAuthContext>({
 
 export function AuthContextProvider(props: PropsWithChildren) {
   const [user, setUser] = useState<IUser>();
+  const [loading, setLoading] = useState<boolean>(true);
 
   /**
    * logout function
@@ -105,6 +108,7 @@ export function AuthContextProvider(props: PropsWithChildren) {
    * get User function
    */
   const getUser = async () => {
+    setLoading(true);
     const res = await axios.get('/api/auth');
 
     if (!res.data.success) {
@@ -119,6 +123,7 @@ export function AuthContextProvider(props: PropsWithChildren) {
       return;
     }
     setUser(res.data.content);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -126,7 +131,9 @@ export function AuthContextProvider(props: PropsWithChildren) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, signUp, logout, getUser }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, signUp, logout, getUser }}
+    >
       {props.children}
     </AuthContext.Provider>
   );

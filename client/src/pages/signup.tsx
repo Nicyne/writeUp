@@ -1,6 +1,6 @@
-import { useAuth } from 'hooks/useAuth';
 import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from 'hooks';
 
 interface IInputValue {
   value: string;

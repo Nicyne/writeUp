@@ -1,4 +1,4 @@
-import { useEditor } from 'hooks/useEditor';
+import { useEditor } from 'hooks';
 import { SyntheticEvent, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { INoteShallow } from 'types';

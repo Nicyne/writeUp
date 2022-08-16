@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useEditor } from 'hooks/useEditor';
+import { useEditor } from 'hooks';
 import { FormEvent, SyntheticEvent, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { INote } from 'types';

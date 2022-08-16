@@ -1,7 +1,7 @@
-import { useAuth } from 'hooks/useAuth';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from 'hooks';
 
 export function Logout() {
   const { user, logout } = useAuth();

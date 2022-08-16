@@ -1,4 +1,4 @@
-import { useEditor } from 'hooks/useEditor';
+import { useEditor } from 'hooks';
 import { CodeBlock } from 'components';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
