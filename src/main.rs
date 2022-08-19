@@ -74,6 +74,9 @@ const FRONTEND_ROOT_PATH: &str = "./public";
 /// Frontend index-file
 const FRONTEND_INDEX_FILE: &str = "index.html";
 
+/// Simplifies certain behaviour to allow for easier testing and debugging
+fn has_dev_flag() -> bool { env::var("ENVIRONMENT").map_or(false, |env| env.eq("DEVELOPMENT")) }
+
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Args {

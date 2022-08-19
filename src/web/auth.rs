@@ -12,7 +12,7 @@ use mongodb::Database;
 use crate::db_access::{Credential, CREDENTIALS, DBError, get_dbo_by_id, User, USER};
 use crate::web::{error::APIError, ResponseObject, ResponseObjectWithPayload};
 use serde::{Serialize, Deserialize};
-use crate::JWT_SECRET_ENV_VAR_KEY;
+use crate::{has_dev_flag, JWT_SECRET_ENV_VAR_KEY};
 
 // JWT-Assets
 /// Time in minutes until a JWT expires
@@ -87,7 +87,7 @@ mod json_objects {
 ///     }
 /// ```
 #[post("/auth")]
-pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objects::TokenRequest>) -> impl Responder { //TODO Secure credentials
+pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objects::TokenRequest>) -> impl Responder {
     // Load Credentials for the supposed user
     match get_dbo_by_id::<Credential>(CREDENTIALS, creds.username.as_str().to_string(), db.get_ref()).await {
         Ok(cred) => {
@@ -100,7 +100,8 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
                         let token_cookie = CookieBuilder::new(JWT_TOKEN_COOKIE_NAME, jwt)
                             .same_site(SameSite::Strict)
                             .max_age(Duration::minutes(JWT_DURATION_MINUTES))
-                            .http_only(true).finish(); //TODO Secure Cookie
+                            .http_only(true)
+                            .secure(!has_dev_flag()).finish();
                         let mut response = HttpResponse::Ok().json(ResponseObject::new());
                         if response.add_cookie(&token_cookie).is_err() {
                             return APIError::InternalServerError("failed to set authentication-cookie".to_string()).gen_response()} //Cookie couldn't be parsed
