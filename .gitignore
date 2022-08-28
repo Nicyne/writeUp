@@ -46,4 +46,4 @@ dev
 target/
 .idea/
 logs/
-public/
+src/public/
