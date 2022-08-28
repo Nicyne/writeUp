@@ -1,5 +1,5 @@
 import { EditorPane, NewNoteForm, Preview, Sidebar } from 'components';
-import { useEditor, useMountEffect } from 'hooks';
+import { useEditor, useKeyboardShortcut, useMountEffect } from 'hooks';
 import { useTranslation } from 'react-i18next';
 import styles from 'styles/components/editor/editorPage.module.scss';
 
@@ -9,6 +9,12 @@ export function Editor() {
 
   useMountEffect(() => {
     getNotes();
+  });
+
+  useKeyboardShortcut(['control', 'e'], () => {
+    if (refs.bodyEditor?.current?.open) return;
+    if (refs.newNoteDialog?.current?.open) return;
+    edit();
   });
 
   const edit = () => {

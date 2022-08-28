@@ -1,4 +1,4 @@
-import { useEditor, useLocalStorage, useMountEffect } from 'hooks';
+import { useEditor, useKeys, useLocalStorage, useMountEffect } from 'hooks';
 import { SyntheticEvent, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { INoteShallow } from 'types';
@@ -11,7 +11,8 @@ interface IProps {
 
 export function SidebarElement(props: IProps) {
   const { note } = props;
-  const { currentNote, getNote, setNote } = useEditor();
+  const { isKeyDown } = useKeys();
+  const { currentNote, getNote, setNote, deleteNote } = useEditor();
   const [lastNote, setLastNote] = useLocalStorage<string>('lastNote', '');
   const deletionDialog = useRef<HTMLDialogElement>(null);
   const [t] = useTranslation();
@@ -27,11 +28,22 @@ export function SidebarElement(props: IProps) {
     await getNote(id);
   };
 
-  const deleteNote = async (e: SyntheticEvent, id: string) => {
+  const deleteSelectedNote = async (e: SyntheticEvent, id: string) => {
     e.stopPropagation();
     if (!deletionDialog.current) return;
 
-    deletionDialog.current.showModal();
+    if (!isKeyDown('shift')) {
+      deletionDialog.current.showModal();
+      return;
+    }
+
+    if (currentNote && currentNote.note_id === id) {
+      setNote(undefined);
+    }
+
+    const success = await deleteNote(id);
+
+    if (!success) return;
   };
 
   useMountEffect(() => {
@@ -54,7 +66,7 @@ export function SidebarElement(props: IProps) {
           <button
             className={styles['button']}
             title={t('notes.deleteTooltip')}
-            onClick={(e) => deleteNote(e, note.note_id)}
+            onClick={(e) => deleteSelectedNote(e, note.note_id)}
           >
             &#x2715;
           </button>

@@ -14,6 +14,7 @@
     "delete": "Delete",
     "deleteTitle": "Delete note",
     "deleteWarning": "This process can not be undone.",
+    "deleteSkipTip": "You can skip this dialog by holding {{key}}.",
     "edit": "Edit",
     "editNote": "Edit Note",
     "new": "New",

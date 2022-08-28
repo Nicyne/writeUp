@@ -45,6 +45,7 @@ export const ConfirmDeletionDialog = forwardRef((props: IDialogProps, ref) => {
         <header>
           <h1>{t('notes.deleteTitle')}</h1>
           <p>{t('notes.deleteWarning')}</p>
+          <small>{t('notes.deleteSkipTip', { key: 'shift' })}</small>
         </header>
         <form onSubmit={finallyDeleteNote}>
           <span className="flex-end">

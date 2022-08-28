@@ -86,7 +86,7 @@ select {
 
 .flex {
   display: flex;
-  gap: var(--gap, 1rem);
+  gap: var(--gap, 0.5rem);
 }
 
 .flex-end {
@@ -96,11 +96,24 @@ select {
 
 .grid {
   display: grid;
-  gap: var(--gap, 1rem);
+  gap: var(--gap, 0.5rem);
 }
 
 .w-full {
   width: 100%;
+}
+
+small {
+  margin-top: 20px;
+  opacity: 75%;
+
+  &::before {
+    content: '(';
+  }
+
+  &::after {
+    content: ')';
+  }
 }
 
 .sr-only {
