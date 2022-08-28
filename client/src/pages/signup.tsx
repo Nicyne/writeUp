@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from 'hooks';
 import { useTranslation } from 'react-i18next';
 import { emptyInputValue, IInputValue } from 'types';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 export function SignUp() {
   const { signUp } = useAuth();
   const [username, setUsername] = useState(emptyInputValue());
   const [password, setPassword] = useState(emptyInputValue());
   const [confirmPassword, setConfirmPassword] = useState(emptyInputValue());
+  const [showPassword, setShowPassword] = useState(false);
   const [t] = useTranslation();
   const navigate = useNavigate();
 
@@ -30,7 +32,7 @@ export function SignUp() {
       return;
     }
 
-    navigate('/login');
+    navigate('/login?success=true');
   };
 
   const onChange = (
@@ -67,7 +69,6 @@ export function SignUp() {
                 id="username"
                 placeholder={t('auth.username')}
                 spellCheck="false"
-                pattern=".{3,}"
                 aria-invalid={username.invalid}
                 value={username.value}
                 onChange={(e) =>
@@ -79,37 +80,47 @@ export function SignUp() {
 
             <label htmlFor="password">
               {t('auth.password')}
-              <input
-                type="password"
-                name={t('auth.password')}
-                id="password"
-                placeholder={t('auth.password')}
-                spellCheck="false"
-                pattern=".{8,}"
-                aria-invalid={password.invalid}
-                value={password.value}
-                onChange={(e) =>
-                  onChange(setPassword, 'Password', 8, e.target.value)
-                }
-              />
+              <div className="input">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name={t('auth.password')}
+                  id="password"
+                  placeholder={t('auth.password')}
+                  spellCheck="false"
+                  aria-invalid={password.invalid}
+                  value={password.value}
+                  onChange={(e) =>
+                    onChange(setPassword, 'Password', 8, e.target.value)
+                  }
+                />
+                <button
+                  title={t('auth.showHidePassword')}
+                  name={t('auth.showHidePassword')}
+                  className="showPasswordButton"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
               <span className="danger">{password.error}</span>
             </label>
 
             <label htmlFor="confirm_password">
               {t('auth.confirmPassword')}
-              <input
-                type="password"
-                name={t('auth.confirmPassword')}
-                id="confirm_password"
-                placeholder={t('auth.confirmPassword')}
-                spellCheck="false"
-                pattern=".{8,}"
-                aria-invalid={confirmPassword.invalid}
-                value={confirmPassword.value}
-                onChange={(e) =>
-                  onChange(setConfirmPassword, 'Password', 8, e.target.value)
-                }
-              />
+              <div className="input">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name={t('auth.confirmPassword')}
+                  id="confirm_password"
+                  placeholder={t('auth.confirmPassword')}
+                  spellCheck="false"
+                  aria-invalid={confirmPassword.invalid}
+                  value={confirmPassword.value}
+                  onChange={(e) =>
+                    onChange(setConfirmPassword, 'Password', 8, e.target.value)
+                  }
+                />
+              </div>
               <span className="danger">{confirmPassword.error}</span>
             </label>
 

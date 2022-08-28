@@ -1,4 +1,7 @@
 {
+  "common": {
+    "success": "Erfolg"
+  },
   "nav": {
     "imprint": "Impressum",
     "about": "Über uns"
@@ -25,6 +28,8 @@
     "username": "Nutzername",
     "password": "Passwort",
     "confirmPassword": "Passwort bestätigen",
+    "showHidePassword": "Passwort anzeigen/verstecken",
+    "signupSuccess": "Registrierung erfolgreich, bitte melde dich jetzt an.",
     "login": {
       "name": "Anmelden",
       "action": "Anmelden",
