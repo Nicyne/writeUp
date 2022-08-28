@@ -1,4 +1,4 @@
-import { useEditor } from 'hooks';
+import { useEditor, useLocalStorage, useMountEffect } from 'hooks';
 import { SyntheticEvent, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { INoteShallow } from 'types';
@@ -12,6 +12,7 @@ interface IProps {
 export function SidebarElement(props: IProps) {
   const { note } = props;
   const { currentNote, getNote, setNote } = useEditor();
+  const [lastNote, setLastNote] = useLocalStorage<string>('lastNote', '');
   const deletionDialog = useRef<HTMLDialogElement>(null);
   const [t] = useTranslation();
 
@@ -21,6 +22,7 @@ export function SidebarElement(props: IProps) {
       setNote(undefined);
       return;
     }
+    setLastNote(id);
 
     await getNote(id);
   };
@@ -31,6 +33,12 @@ export function SidebarElement(props: IProps) {
 
     deletionDialog.current.showModal();
   };
+
+  useMountEffect(() => {
+    if (lastNote === note.note_id) {
+      selectNote(lastNote);
+    }
+  });
 
   return (
     <>
