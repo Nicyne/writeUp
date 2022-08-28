@@ -1,11 +1,13 @@
 import axios from 'axios';
 import { useEditor } from 'hooks';
-import { FormEvent, SyntheticEvent, useRef } from 'react';
+import { FormEvent, SyntheticEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { INote } from 'types';
 import styles from 'styles/components/editor/editorPane.module.scss';
 
 export function EditorPane() {
-  const { currentNote, refs, setNote, getNotes } = useEditor();
+  const [shadowNote, setShadowNote] = useState<INote>();
+  const { currentNote, refs, notes, setNotes, setNote } = useEditor();
   const [t] = useTranslation();
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -13,26 +15,51 @@ export function EditorPane() {
     e.stopPropagation();
     e.preventDefault();
 
-    if (!currentNote) return;
+    if (!currentNote || !shadowNote) return;
 
     const res = await axios.put(
       '/api/note/' + currentNote.note_id,
-      currentNote.note
+      shadowNote.note
     );
 
     if (!res.data.success) {
       console.error(res.data.message);
       return;
     }
-    getNotes();
+
+    const responseNote: INote = res.data.content;
+
+    if (!responseNote) {
+      console.error('No note was returned');
+      return;
+    }
+
+    setNotes(
+      notes.map((note) => {
+        if (note.note_id === responseNote.note_id) {
+          return {
+            note_id: responseNote.note_id,
+            allowance: responseNote.allowance,
+            title: responseNote.note.title,
+            tags: responseNote.note.tags,
+          };
+        }
+
+        return note;
+      })
+    );
+    setNote(responseNote);
+
     refs.bodyEditor?.current?.close();
     formRef.current?.reset();
   };
 
   const cancel = (e: SyntheticEvent) => {
-    console.log(e);
     e.stopPropagation();
     e.preventDefault();
+
+    setShadowNote(currentNote);
+
     refs.bodyEditor?.current?.close();
     formRef.current?.reset();
   };
@@ -45,7 +72,11 @@ export function EditorPane() {
     }
   };
 
-  if (!currentNote) {
+  useEffect(() => {
+    setShadowNote(currentNote);
+  }, [currentNote]);
+
+  if (!currentNote || !shadowNote) {
     return <></>;
   }
 
@@ -60,13 +91,13 @@ export function EditorPane() {
             {t('notes.title')}
             <input
               type="text"
-              value={currentNote.note.title}
+              value={shadowNote.note.title}
               name={t('notes.title')}
               id="title"
               onChange={(e) =>
-                setNote({
-                  ...currentNote,
-                  note: { ...currentNote.note, title: e.target.value },
+                setShadowNote({
+                  ...shadowNote,
+                  note: { ...shadowNote.note, title: e.target.value },
                 })
               }
             />
@@ -75,13 +106,14 @@ export function EditorPane() {
           <label htmlFor="content">
             {t('notes.content')}
             <textarea
-              value={currentNote.note.content}
+              autoFocus
+              value={shadowNote.note.content}
               name={t('notes.content')}
               id="content"
               onChange={(e) =>
-                setNote({
-                  ...currentNote,
-                  note: { ...currentNote.note, content: e.target.value },
+                setShadowNote({
+                  ...shadowNote,
+                  note: { ...shadowNote.note, content: e.target.value },
                 })
               }
             />
@@ -91,14 +123,14 @@ export function EditorPane() {
             {t('notes.tags')}
             <input
               type="text"
-              value={currentNote.note.tags.join(';')}
+              value={shadowNote.note.tags.join(';')}
               name={t('notes.tags')}
               id="tags"
               onChange={(e) =>
-                setNote({
-                  ...currentNote,
+                setShadowNote({
+                  ...shadowNote,
                   note: {
-                    ...currentNote.note,
+                    ...shadowNote.note,
                     tags: e.target.value.split(';'),
                   },
                 })
