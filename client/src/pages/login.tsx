@@ -2,7 +2,6 @@ import { FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from 'hooks';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 export function Login() {
   const { login } = useAuth();
@@ -10,7 +9,6 @@ export function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -58,24 +56,14 @@ export function Login() {
 
             <label htmlFor="password">
               {t('auth.password')}
-              <div className="input">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name={t('auth.password')}
-                  id="password"
-                  placeholder={t('auth.password')}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <button
-                  title={t('auth.showHidePassword')}
-                  name={t('auth.showHidePassword')}
-                  className="showPasswordButton"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <FaEyeSlash /> : <FaEye />}
-                </button>
-              </div>
+              <input
+                type="password"
+                name={t('auth.password')}
+                id="password"
+                placeholder={t('auth.password')}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </label>
 
             <span className="danger">{error}</span>
