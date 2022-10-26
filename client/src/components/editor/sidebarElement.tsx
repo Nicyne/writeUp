@@ -3,6 +3,7 @@ import { SyntheticEvent, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { INoteShallow } from 'types';
 import { ConfirmDeletionDialog } from './confirmDeletionDialog';
+import { Trash } from 'react-feather';
 import styles from 'styles/components/editor/sidebarElement.module.scss';
 
 interface IProps {
@@ -68,7 +69,7 @@ export function SidebarElement(props: IProps) {
             title={t('notes.deleteTooltip')}
             onClick={(e) => deleteSelectedNote(e, note.note_id)}
           >
-            &#x2715;
+            <Trash />
           </button>
         </span>
         {note.tags.length !== 0 ? (

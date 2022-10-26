@@ -1,6 +1,7 @@
 import { EditorPane, NewNoteForm, Preview, Sidebar } from 'components';
 import { useEditor, useKeyboardShortcut, useMountEffect } from 'hooks';
 import { useTranslation } from 'react-i18next';
+import { Edit } from 'react-feather';
 import styles from 'styles/components/editor/editorPage.module.scss';
 
 export function Editor() {
@@ -33,8 +34,12 @@ export function Editor() {
       <EditorPane />
 
       {currentNote && (
-        <button onClick={edit} className={styles['editButton']} title="Edit">
-          {t('notes.edit')}
+        <button
+          onClick={edit}
+          className={`${styles['editButton']} svgButton round`}
+          title={t('notes.edit')}
+        >
+          <Edit />
         </button>
       )}
     </div>

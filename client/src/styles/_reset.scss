@@ -288,6 +288,17 @@ dialog span.flex-end {
   gap: 10px;
 }
 
+.svgButton {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  &.round {
+    padding: 0.5rem;
+    border-radius: 100%;
+  }
+}
+
 .banner {
   background-color: var(--bg-tertiary);
   box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
