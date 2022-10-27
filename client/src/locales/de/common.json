@@ -1,4 +1,7 @@
 {
+  "common": {
+    "success": "Erfolg"
+  },
   "nav": {
     "imprint": "Impressum",
     "about": "Über uns"
@@ -11,6 +14,7 @@
     "delete": "Löschen",
     "deleteTitle": "Notiz Löschen",
     "deleteWarning": "Dieses Prozess kann nicht umgekehrt werden.",
+    "deleteSkipTip": "Du kannst diesen Dialog überspringen in dem du {{key}} gedrückt hältst.",
     "edit": "Bearbeiten",
     "editNote": "Notiz bearbeiten",
     "new": "Neu",
@@ -25,6 +29,8 @@
     "username": "Nutzername",
     "password": "Passwort",
     "confirmPassword": "Passwort bestätigen",
+    "showHidePassword": "Passwort anzeigen/verstecken",
+    "signupSuccess": "Registrierung erfolgreich, bitte melde dich jetzt an.",
     "login": {
       "name": "Anmelden",
       "action": "Anmelden",

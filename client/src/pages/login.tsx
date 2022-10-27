@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from 'hooks';
 
 export function Login() {
@@ -8,6 +8,8 @@ export function Login() {
   const [t] = useTranslation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
   const submit = async (e: FormEvent) => {
@@ -16,6 +18,7 @@ export function Login() {
     const result = await login(username, password);
     if (!result.success) {
       console.log(result);
+      setError(result.message);
       return;
     }
 
@@ -30,6 +33,15 @@ export function Login() {
             <h1>{t('auth.login.name')}</h1>
           </header>
           <form onSubmit={submit}>
+            {searchParams.get('success') && (
+              <span className="banner success">
+                <header>
+                  <h3>{t('common.success') + '!'}</h3>
+                </header>
+                <p>{t('auth.signupSuccess')}</p>
+              </span>
+            )}
+
             <label htmlFor="username">
               {t('auth.username')}
               <input
@@ -53,6 +65,8 @@ export function Login() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </label>
+
+            <span className="danger">{error}</span>
 
             <button type="submit" className="w-full">
               {t('auth.login.action')}

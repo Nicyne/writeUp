@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from 'hooks';
+import { useAuth, useMountEffect } from 'hooks';
 
 export function Logout() {
   const { user, logout } = useAuth();
   const [t] = useTranslation();
-  const [loggedOut, SetLoggedOut] = useState(false);
+  const [loggedOut, setLoggedOut] = useState(false);
   const [countDown, setCountDown] = useState(5);
   const navigate = useNavigate();
 
   const unit = countDown > 1 ? t('time.seconds') : t('time.second');
 
-  useEffect(() => {
-    let redirectTimer: any;
+  useMountEffect(() => {
+    let redirectTimer: NodeJS.Timeout;
 
     if (!user) {
       navigate('/');
@@ -21,17 +21,15 @@ export function Logout() {
     }
 
     logout();
-    SetLoggedOut(true);
-    console.log(loggedOut);
+    setLoggedOut(true);
     redirectTimer = setTimeout(() => {
       navigate('/');
     }, 5000);
-
     return () => clearTimeout(redirectTimer);
-  }, []);
+  });
 
   useEffect(() => {
-    let countdownTimer: any;
+    let countdownTimer: NodeJS.Timeout;
 
     countdownTimer = setTimeout(() => {
       setCountDown(countDown - 1);
@@ -39,6 +37,8 @@ export function Logout() {
 
     return () => clearTimeout(countdownTimer);
   });
+
+  if (!loggedOut) return <></>;
 
   return (
     <div className="container">

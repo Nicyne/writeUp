@@ -86,7 +86,7 @@ select {
 
 .flex {
   display: flex;
-  gap: var(--gap, 1rem);
+  gap: var(--gap, 0.5rem);
 }
 
 .flex-end {
@@ -96,11 +96,24 @@ select {
 
 .grid {
   display: grid;
-  gap: var(--gap, 1rem);
+  gap: var(--gap, 0.5rem);
 }
 
 .w-full {
   width: 100%;
+}
+
+small {
+  margin-top: 20px;
+  opacity: 75%;
+
+  &::before {
+    content: '(';
+  }
+
+  &::after {
+    content: ')';
+  }
 }
 
 .sr-only {
@@ -155,7 +168,7 @@ form {
   border-radius: var(--card-border-radius);
   box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
 
-  header {
+  > header {
     background-color: var(--bg-secondary);
     padding: 25px;
   }
@@ -273,4 +286,54 @@ dialog span.flex-end {
   justify-content: flex-end;
   align-items: center;
   gap: 10px;
+}
+
+.svgButton {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  &.round {
+    padding: 0.5rem;
+    border-radius: 100%;
+  }
+}
+
+.banner {
+  background-color: var(--bg-tertiary);
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+  border-radius: var(--generic-border-radius);
+  margin-bottom: 10px;
+  overflow: hidden;
+  
+  header {
+    background-color: #22c55e;
+    padding: 5px 15px;
+
+    h3 {
+      font-weight: bold;
+    }
+  }
+  
+  p {
+    padding: 5px 15px;
+  }
+}
+
+.input {
+  width: 100%;
+  position: relative;
+
+  input {
+    width: 100%;
+  }
+}
+
+.showPasswordButton {
+  position: absolute;
+  right: 5px;
+  top: 15%;
+  color: var(--fg-primary);
+  background-color: transparent;
+  border: none;
 }

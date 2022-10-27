@@ -30,7 +30,7 @@ export function SignUp() {
       return;
     }
 
-    navigate('/login');
+    navigate('/login?success=true');
   };
 
   const onChange = (
@@ -67,7 +67,6 @@ export function SignUp() {
                 id="username"
                 placeholder={t('auth.username')}
                 spellCheck="false"
-                pattern=".{3,}"
                 aria-invalid={username.invalid}
                 value={username.value}
                 onChange={(e) =>
@@ -85,7 +84,6 @@ export function SignUp() {
                 id="password"
                 placeholder={t('auth.password')}
                 spellCheck="false"
-                pattern=".{8,}"
                 aria-invalid={password.invalid}
                 value={password.value}
                 onChange={(e) =>
@@ -103,7 +101,6 @@ export function SignUp() {
                 id="confirm_password"
                 placeholder={t('auth.confirmPassword')}
                 spellCheck="false"
-                pattern=".{8,}"
                 aria-invalid={confirmPassword.invalid}
                 value={confirmPassword.value}
                 onChange={(e) =>

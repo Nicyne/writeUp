@@ -33,9 +33,6 @@ export function PageFooter() {
         </ul>
         <ul className={styles['list']}>
           <li>
-            <Link to="/imprint">{t('nav.imprint')}</Link>
-          </li>
-          <li>
             <Link to="/about">{t('nav.about')}</Link>
           </li>
         </ul>

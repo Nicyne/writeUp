@@ -3,15 +3,14 @@ import detector from 'i18next-browser-languagedetector';
 import backend from 'i18next-http-backend';
 import { initReactI18next } from 'react-i18next';
 
-import de from 'locales/de/common.json';
-import en from 'locales/en/common.json';
+export const fallbackLocale = 'en';
 
 const resources = {
   en: {
-    translation: en,
+    translation: require('locales/en/common.json'),
   },
   de: {
-    translation: de,
+    translation: require('locales/de/common.json'),
   },
 };
 
@@ -21,7 +20,8 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'de',
+    supportedLngs: ['de', 'en'],
+    fallbackLng: fallbackLocale,
     interpolation: { escapeValue: false },
   });
 

@@ -4,7 +4,7 @@ import reportWebVitals from 'reportWebVitals';
 import { App } from 'app';
 import { BrowserRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
-import { AuthContextProvider } from 'context';
+import { AuthContextProvider, KeyContextProvider } from 'context';
 import 'styles/index.scss';
 import 'i18n';
 
@@ -15,9 +15,11 @@ root.render(
   <React.StrictMode>
     <HelmetProvider>
       <AuthContextProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <KeyContextProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </KeyContextProvider>
       </AuthContextProvider>
     </HelmetProvider>
   </React.StrictMode>

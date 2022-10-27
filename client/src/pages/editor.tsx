@@ -1,16 +1,22 @@
 import { EditorPane, NewNoteForm, Preview, Sidebar } from 'components';
-import { useEditor } from 'hooks';
-import { useEffect } from 'react';
+import { useEditor, useKeyboardShortcut, useMountEffect } from 'hooks';
 import { useTranslation } from 'react-i18next';
+import { Edit } from 'react-feather';
 import styles from 'styles/components/editor/editorPage.module.scss';
 
 export function Editor() {
   const { currentNote, getNotes, refs } = useEditor();
   const [t] = useTranslation();
 
-  useEffect(() => {
+  useMountEffect(() => {
     getNotes();
-  }, []);
+  });
+
+  useKeyboardShortcut(['control', 'e'], () => {
+    if (refs.bodyEditor?.current?.open) return;
+    if (refs.newNoteDialog?.current?.open) return;
+    edit();
+  });
 
   const edit = () => {
     if (!currentNote) return;
@@ -24,12 +30,16 @@ export function Editor() {
     <div className={styles['editor-page']}>
       <Sidebar />
       <Preview />
-      <EditorPane />
       <NewNoteForm />
+      <EditorPane />
 
       {currentNote && (
-        <button onClick={edit} className={styles['editButton']} title="Edit">
-          {t('notes.edit')}
+        <button
+          onClick={edit}
+          className={`${styles['editButton']} svgButton round`}
+          title={t('notes.edit')}
+        >
+          <Edit />
         </button>
       )}
     </div>
