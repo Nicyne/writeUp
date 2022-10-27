@@ -17,6 +17,7 @@
 //!     * `PASSWD_SECRET` - The secret used to pepper password-hashes
 //!     * `JWT_SECRET` - The secret used in creating and verifying JWTs *[default: random]*
 //!     * `SHARE_SECRET` - The secret used in creating and verifying invitation-codes *[default: random]*
+//!     * `BETA_KEY` - The key to indicate beta-membership *[default: random]*
 //!
 //! 3. Start up the server by executing `writeUp` and wait for
 //!     ```text
@@ -112,6 +113,13 @@ async fn main() -> std::io::Result<()> {
         env::set_var(SHARE_SECRET_ENV_VAR_KEY, new_secret);
     }
     debug!("Share-Secret: {}", env::var(SHARE_SECRET_ENV_VAR_KEY).unwrap());
+
+    if env::var("BETA_KEY").is_err() {
+        let new_key: String = rand::thread_rng().sample_iter(&Alphanumeric)
+            .take(5).map(char::from).collect();
+        env::set_var("BETA_KEY", new_key);
+    }
+    debug!("Beta-Key: {}", env::var("BETA_KEY").unwrap());
 
     // The port to listen to
     let api_port;

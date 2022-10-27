@@ -40,7 +40,9 @@ mod json_objects {
         /// Username
         pub username: String,
         /// Password
-        pub password: String
+        pub password: String,
+        /// Define whether or not to verify the user for longer than a single session
+        pub session_only: bool
     }
 }
 
@@ -64,7 +66,8 @@ mod json_objects {
 /// POST-Request at `{api-url}/auth` (valid credentials)
 ///     {
 ///         "username": "testUser",
-///         "password": "testPass"
+///         "password": "testPass",
+///         "session_only": false
 ///     }
 /// => 200 [cookie with JWT is set]
 ///     {
@@ -76,7 +79,8 @@ mod json_objects {
 /// POST-Request at `{api-url}/auth` (invalid credentials)
 ///     {
 ///         "username": "testUser",
-///         "password": "passTest"
+///         "password": "passTest",
+///         "session_only": false
 ///     }
 /// => 200
 ///     {
@@ -97,11 +101,15 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
                 match gen_jwt(creds.username.as_str()) {
                     Ok(jwt) => {
                         // Create a cookie with the JWT
-                        let token_cookie = CookieBuilder::new(JWT_TOKEN_COOKIE_NAME, jwt)
+                        let token_cookie_builder = CookieBuilder::new(JWT_TOKEN_COOKIE_NAME, jwt)
                             .same_site(SameSite::Strict)
-                            .max_age(Duration::minutes(JWT_DURATION_MINUTES))
                             .http_only(true)
-                            .secure(!has_dev_flag()).finish();
+                            .secure(!has_dev_flag());
+                        let token_cookie = if !creds.session_only {
+                                token_cookie_builder.max_age(Duration::minutes(JWT_DURATION_MINUTES)).finish()
+                            } else {
+                                token_cookie_builder.finish()
+                            };
                         let mut response = HttpResponse::Ok().json(ResponseObject::new());
                         if response.add_cookie(&token_cookie).is_err() {
                             return APIError::InternalServerError("failed to set authentication-cookie".to_string()).gen_response()} //Cookie couldn't be parsed

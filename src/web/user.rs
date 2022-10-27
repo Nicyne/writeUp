@@ -1,5 +1,6 @@
 //! Endpoints regarding user-objects and their manipulation
 
+use std::env;
 use std::sync::Mutex;
 use actix_web::{get, delete, post, Responder, HttpRequest, HttpResponse, web};
 use actix_web::web::Data;
@@ -33,7 +34,9 @@ mod json_objects {
         /// The identifier of the new user
         pub username: String,
         /// The password associated with the new user
-        pub password: String
+        pub password: String,
+        /// A key indicating the user has access to the beta-deployment
+        pub beta_key: String
     }
 }
 
@@ -61,7 +64,8 @@ mod json_objects {
 /// POST-Request at `{api-url}/user` with no token-cookie
 ///     {
 ///         "username": "otherUser",
-///         "password": "otherPass"
+///         "password": "otherPass",
+///         "beta_key": "B757B"
 ///     }
 /// => 201
 ///     {
@@ -77,7 +81,8 @@ mod json_objects {
 /// POST-Request at `{api-url}/user` with no token-cookie (username already exists in db)
 ///     {
 ///         "username": "testUser",
-///         "password": "otherPass"
+///         "password": "otherPass",
+///         "beta_key": "B757B"
 ///     }
 /// => 200
 ///     {
@@ -91,7 +96,23 @@ mod json_objects {
 /// POST-Request at `{api-url}/user` with a valid token-cookie
 ///     {
 ///         "username": "otherUser",
-///         "password": "otherPass"
+///         "password": "otherPass",
+///         "beta_key": "B757B"
+///     }
+/// => 403
+///     {
+///         "success": false,
+///         "code": 12,
+///         "message": "no permission",
+///         "time": "2022-04-11 12:20:19"
+///     }
+/// ```
+/// ```text
+/// POST-Request at `{api-url}/user` with an invalid beta-key
+///     {
+///         "username": "otherUser",
+///         "password": "otherPass",
+///         "beta_key": "B757C"
 ///     }
 /// => 403
 ///     {
@@ -105,6 +126,10 @@ mod json_objects {
 pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db: Data<Mutex<Database>>) -> impl Responder {
     // Check if still logged in
     if get_user_id_from_request(req).is_ok() { //TODO? necessary to be logged out?
+        return APIError::NoPermissionError.gen_response()
+    }
+    // Verify access to beta-deploy
+    if user_req.beta_key != env::var("BETA_KEY").unwrap() {
         return APIError::NoPermissionError.gen_response()
     }
     let new_user = user_req.into_inner();
