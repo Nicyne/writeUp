@@ -75,8 +75,8 @@ export function SidebarElement(props: IProps) {
         {note.tags.length !== 0 ? (
           <span>
             <ul className={styles['tags']}>
-              {note.tags.map((tag) => (
-                <li key={tag}>{tag}</li>
+              {note.tags.map((tag, index) => (
+                <li key={tag + index}>{tag}</li>
               ))}
             </ul>
           </span>
