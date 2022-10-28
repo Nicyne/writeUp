@@ -17,6 +17,7 @@ export function EditorPane() {
 
     if (!currentNote || !shadowNote) return;
 
+    shadowNote.note.tags = shadowNote.note.tags.filter((tag) => tag !== '');
     const res = await axios.put(
       '/api/note/' + currentNote.note_id,
       shadowNote.note
@@ -41,7 +42,7 @@ export function EditorPane() {
             note_id: responseNote.note_id,
             allowance: responseNote.allowance,
             title: responseNote.note.title,
-            tags: responseNote.note.tags,
+            tags: responseNote.note.tags.filter((tag) => tag !== ''),
           };
         }
 
