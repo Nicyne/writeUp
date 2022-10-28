@@ -7,7 +7,7 @@ import {
 } from 'react';
 import { useKeys } from './useKeys';
 
-export function useKeyboardShortcut(
+export function useMnemonic(
   keys: string[],
   callback: EffectCallback,
   node = null

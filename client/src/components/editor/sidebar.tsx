@@ -1,4 +1,4 @@
-import { useEditor, useKeyboardShortcut } from 'hooks';
+import { useEditor, useMnemonic } from 'hooks';
 import { useTranslation } from 'react-i18next';
 import { SidebarElement } from './sidebarElement';
 import { Plus } from 'react-feather';
@@ -8,7 +8,7 @@ export function Sidebar() {
   const { notes, refs } = useEditor();
   const [t] = useTranslation();
 
-  useKeyboardShortcut(['control', 'n'], () => {
+  useMnemonic(['control', 'n'], () => {
     if (refs.newNoteDialog?.current?.open) return;
     showNewNotesDialog();
   });

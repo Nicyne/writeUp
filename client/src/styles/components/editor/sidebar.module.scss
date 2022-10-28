@@ -9,6 +9,7 @@
 .noteList {
   max-width: 33vw;
   min-width: 10vw;
+  resize: horizontal;
   max-height: 90vh;
   overflow-y: scroll;
   list-style: none;

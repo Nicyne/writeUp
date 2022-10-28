@@ -1,5 +1,5 @@
 import { EditorPane, NewNoteForm, Preview, Sidebar } from 'components';
-import { useEditor, useKeyboardShortcut, useMountEffect } from 'hooks';
+import { useEditor, useMnemonic, useMountEffect } from 'hooks';
 import { useTranslation } from 'react-i18next';
 import { Edit } from 'react-feather';
 import styles from 'styles/components/editor/editorPage.module.scss';
@@ -12,7 +12,7 @@ export function Editor() {
     getNotes();
   });
 
-  useKeyboardShortcut(['control', 'e'], () => {
+  useMnemonic(['control', 'e'], () => {
     if (refs.bodyEditor?.current?.open) return;
     if (refs.newNoteDialog?.current?.open) return;
     edit();
