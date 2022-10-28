@@ -43,7 +43,8 @@
     },
     "signup": {
       "name": "Sign Up",
-      "action": "Sign Up"
+      "action": "Sign Up",
+      "betaKey": "Beta Key"
     }
   },
   "time": {

@@ -8,6 +8,7 @@ export function Login() {
   const [t] = useTranslation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [sessionOnly, setSessionOnly] = useState(true);
   const [error, setError] = useState('');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ export function Login() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
 
-    const result = await login(username, password);
+    const result = await login(username, password, sessionOnly);
     if (!result.success) {
       console.log(result);
       setError(result.message);
@@ -63,6 +64,18 @@ export function Login() {
                 placeholder={t('auth.password')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+
+            <label htmlFor="rememberMe" className="flex flex-reverse">
+              {t('auth.login.rememberMe')}
+              <input
+                type="checkbox"
+                name={t('auth.login.rememberMe')}
+                id="rememberMe"
+                placeholder={t('auth.login.rememberMe')}
+                value={password}
+                onChange={(e) => setSessionOnly(!e.target.checked)}
               />
             </label>
 

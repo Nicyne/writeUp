@@ -8,6 +8,7 @@ export function SignUp() {
   const { signUp } = useAuth();
   const [username, setUsername] = useState(emptyInputValue());
   const [password, setPassword] = useState(emptyInputValue());
+  const [betaKey, setBetaKey] = useState(emptyInputValue());
   const [confirmPassword, setConfirmPassword] = useState(emptyInputValue());
   const [t] = useTranslation();
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ export function SignUp() {
       return;
     }
 
-    const result = await signUp(username.value, password.value);
+    const result = await signUp(username.value, password.value, betaKey.value);
     if (!result.success) {
       console.log(result);
       return;
@@ -108,6 +109,23 @@ export function SignUp() {
                 }
               />
               <span className="danger">{confirmPassword.error}</span>
+            </label>
+
+            <label htmlFor="betaKey">
+              {t('auth.signup.betaKey')}
+              <input
+                type="password"
+                name={t('auth.signup.betaKey')}
+                id="betaKey"
+                placeholder={t('auth.signup.betaKey')}
+                spellCheck="false"
+                aria-invalid={betaKey.invalid}
+                value={betaKey.value}
+                onChange={(e) =>
+                  onChange(setBetaKey, 'BetaKey', 0, e.target.value)
+                }
+              />
+              <span className="danger">{betaKey.error}</span>
             </label>
 
             <button type="submit" className="w-full">

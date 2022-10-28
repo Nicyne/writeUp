@@ -86,7 +86,13 @@ select {
 
 .flex {
   display: flex;
+  flex-direction: row;
   gap: var(--gap, 0.5rem);
+
+  &.flex-reverse {
+    justify-content: flex-end;
+    flex-direction: row-reverse;
+  }
 }
 
 .flex-end {

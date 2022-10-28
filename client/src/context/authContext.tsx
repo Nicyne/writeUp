@@ -10,8 +10,16 @@ export interface IResponse {
 export interface IAuthContext {
   user?: IUser;
   loading: boolean;
-  login: (username: string, password: string) => Promise<IResponse>;
-  signUp: (username: string, password: string) => Promise<IResponse>;
+  login: (
+    username: string,
+    password: string,
+    sessionOnly: boolean
+  ) => Promise<IResponse>;
+  signUp: (
+    username: string,
+    password: string,
+    betaKey: string
+  ) => Promise<IResponse>;
   logout: () => Promise<void>;
   getUser: () => Promise<void>;
 }
@@ -59,13 +67,18 @@ export function AuthContextProvider(props: PropsWithChildren) {
    */
   const login = async (
     username: string,
-    password: string
+    password: string,
+    sessionOnly: boolean
   ): Promise<IResponse> => {
     if (username.length < 3) {
       return { success: false, message: 'provided invalid username' };
     }
 
-    const res = await axios.post('/api/auth', { username, password });
+    const res = await axios.post('/api/auth', {
+      username,
+      password,
+      session_only: sessionOnly,
+    });
 
     if (!res.data.success) {
       console.log(res);
@@ -84,7 +97,8 @@ export function AuthContextProvider(props: PropsWithChildren) {
    */
   const signUp = async (
     username: string,
-    password: string
+    password: string,
+    betaKey: string
   ): Promise<IResponse> => {
     if (username.length < 3) {
       return { success: false, message: 'provided invalid username' };
@@ -92,8 +106,15 @@ export function AuthContextProvider(props: PropsWithChildren) {
     if (password.length < 8) {
       return { success: false, message: 'provided invalid password' };
     }
+    if (betaKey.length <= 0) {
+      return { success: false, message: 'provided invalid betaKey' };
+    }
 
-    const res = await axios.post('/api/user', { username, password });
+    const res = await axios.post('/api/user', {
+      username,
+      password,
+      beta_key: betaKey,
+    });
 
     if (!res.data.success) {
       console.log(res);

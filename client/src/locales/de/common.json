@@ -43,7 +43,8 @@
     },
     "signup": {
       "name": "Registrieren",
-      "action": "Registrieren"
+      "action": "Registrieren",
+      "betaKey": "Beta Schlüssel"
     }
   },
   "time": {
