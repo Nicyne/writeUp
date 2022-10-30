@@ -1,6 +1,35 @@
 {
+  "landing": {
+    "welcomeTo": "Willkommen zu",
+    "subtitle": "der kostenlosen, open-source Notiz-APP",
+    "tryNow": "Probiere es aus!",
+    "betaKeyNotice": "Während der Entwicklungsphase könnte ein Beta-Schlüssel zur Anmeldung erfolderlich sein.",
+    "whyWriteUp": "Warum writeUp?",
+    "markdown": {
+      "title": "Markdown-Unterstützung",
+      "body": "WriteUp folgt dem CommonMark-Spec und bietet zusätzliche Features wie GFM und Unterstützung für Unicode-Emojis. So bleiben deine Notizen immer lesbar und strukturiert."
+    },
+    "organization": {
+      "title": "Einfache Organisation",
+      "body": "Mit Tags bietet writeup eine simple und dynamische Übersicht über deine eigenen und die mit dir getilten Notizen.",
+      "note": "Den Überblick zu behalten war noch nie so einfach!"
+    },
+    "sharing": {
+      "title": "Einfaches Teilen",
+      "body": "Mit nur wenigen Klicks kannst du deine Notiz für deine Freude oder Kollegen öffnen. Erlaube ihnen deine Notiz zu lesen, sie zu Ändern oder widerrufe diese Rechte wieder.",
+      "note": "Es ist immerhin deine Notiz!",
+      "footnote": "Dieses Feature ist während der Entwicklung entweder nicht oder nur teilweise verfügbar."
+    },
+    "far": {
+      "title": "Schnell und Zuverlässig",
+      "body": "Durch das in TypeScript geschriebene mit ReactJS gebaute Frontend, bietet writeUp ein zuverlässiges und intuitives Interface um deine Notizen zu verwalten. Zusammen mit seinem blitzschnell Rust-Backend musst die nie warten, bis eine Änderung statt findet."
+    }
+  },
   "common": {
-    "success": "Erfolg"
+    "success": "Erfolg",
+    "appName": "writeUp",
+    "home": "Home",
+    "inDevelopment": "In Entwicklung"
   },
   "nav": {
     "imprint": "Impressum",

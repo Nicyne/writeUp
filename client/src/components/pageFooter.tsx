@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import { ExternalLink } from 'react-feather';
 import styles from 'styles/components/pageFooter.module.scss';
 
 export function PageFooter() {
@@ -29,9 +30,21 @@ export function PageFooter() {
           </li>
         </ul>
         <ul className={`${styles['list']} center`}>
-          <li>&copy; {new Date().getFullYear()}</li>
+          <li>
+            {t('common.appName')} &copy; {new Date().getFullYear()}
+          </li>
         </ul>
         <ul className={styles['list']}>
+          <li>
+            <a
+              href="https://github.com/nicyne/writeup"
+              target="_blank"
+              rel="noreferrer"
+            >
+              GitHub
+              <ExternalLink />
+            </a>
+          </li>
           <li>
             <Link to="/about">{t('nav.about')}</Link>
           </li>

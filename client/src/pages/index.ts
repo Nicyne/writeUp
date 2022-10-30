@@ -4,3 +4,4 @@ export { Logout } from './logout';
 export { SignUp } from './signup';
 export { Editor } from './editor';
 export { NoMatch } from './noMatch';
+export { About } from './about';

@@ -6,7 +6,7 @@ export function DefaultLayout(props: PropsWithChildren) {
   return (
     <>
       <PageHeader />
-      <main id="main">{props.children}</main>
+      {props.children}
       <PageFooter />
     </>
   );

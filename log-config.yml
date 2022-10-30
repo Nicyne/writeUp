@@ -29,7 +29,7 @@ root:
 
 loggers:
   writeUp:
-    level: debug
+    level: debug # for production using a level of 'info' is recommended
     appenders:
       - stdout
   writeup::actix:

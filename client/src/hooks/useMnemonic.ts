@@ -28,6 +28,7 @@ export function useMnemonic(
         callbackRef.current();
       }
     },
+    // eslint-disable-next-line
     [keys]
   );
 

@@ -5,7 +5,9 @@ export function EditorLayout(props: PropsWithChildren) {
   return (
     <>
       <PageHeader />
-      <main id="main">{props.children}</main>
+      <main id="main" className="fh">
+        {props.children}
+      </main>
     </>
   );
 }

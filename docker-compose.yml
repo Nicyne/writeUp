@@ -28,11 +28,11 @@ services:
       - "8080:8080"
     environment:
       #API_PORT: 8080
-      ENVIRONMENT: DEVELOPMENT
       DB_URI: mongo
       DB_PORT: 27017
       DB_USER: root
       DB_PASSWD: example
+      BETA_KEY: B757B
       PASSWD_SECRET: randomcharacters
       #JWT_SECRET: secret
       #SHARE_SECRET: otherSecret

@@ -1,5 +1,5 @@
 import { Route, Routes, Navigate } from 'react-router-dom';
-import { Editor, Landing, Login, Logout, NoMatch, SignUp } from 'pages';
+import { Editor, Landing, About, Login, Logout, NoMatch, SignUp } from 'pages';
 import React, { PropsWithChildren } from 'react';
 import { DefaultLayout, EditorLayout } from 'components';
 import { EditorContextProvider } from 'context';
@@ -23,6 +23,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/" element={withDefaultLayout(<Landing />)} />
+      <Route path="/about" element={withDefaultLayout(<About />)} />
       <Route path="/login" element={withDefaultLayout(<Login />)} />
       <Route path="/logout" element={withDefaultLayout(<Logout />)} />
       <Route path="/signup" element={withDefaultLayout(<SignUp />)} />

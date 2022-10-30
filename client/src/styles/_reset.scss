@@ -28,8 +28,8 @@ body {
 
 html,
 body,
-#root,
-#main {
+#root {
+  width: 100%;
   height: 100%;
 }
 
@@ -80,8 +80,12 @@ select {
 .container {
   height: 100%;
   width: min(100%, 1440px);
-  padding-inline: 1em;
+  padding-inline: 1rem;
   margin-inline: auto;
+}
+
+.fh {
+  height: 100%;
 }
 
 .flex {
@@ -95,9 +99,19 @@ select {
   }
 }
 
+.accent-text {
+  color: var(--accent-primary);
+}
+
 .flex-end {
   display: flex;
   justify-content: flex-end;
+}
+
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .grid {
@@ -150,6 +164,7 @@ small {
 .fs-400 { font-size: var(--fs-400); }
 .fs-300 { font-size: var(--fs-300); }
 .fs-200 { font-size: var(--fs-200); }
+.fs-100 { font-size: var(--fs-100); }
 
 .fs-900,
 .fs-800,
@@ -162,13 +177,11 @@ small {
 /* Defaults            */
 /* ------------------- */
 
-form {
+.form {
   display: flex;
   flex-direction: column;
-}
-
-.form {
   background-color: var(--bg-primary);
+  color: var(--fg-primary);
   width: min(100%, 450px);
   border: 1px solid var(--bg-secondary);
   border-radius: var(--card-border-radius);
@@ -217,6 +230,10 @@ textarea {
   color: var(--danger-primary);
 }
 .danger:not(button) {
+  font-size: var(--fs-200);
+}
+
+.small {
   font-size: var(--fs-200);
 }
 

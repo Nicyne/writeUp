@@ -9,5 +9,6 @@ import { EffectCallback, useEffect } from 'react';
  * @returns
  */
 export function useMountEffect(effect: EffectCallback) {
+  // eslint-disable-next-line
   return useEffect(effect, []);
 }

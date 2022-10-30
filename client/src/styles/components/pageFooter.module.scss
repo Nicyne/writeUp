@@ -1,4 +1,7 @@
+@import "../mixins";
+
 .footer {
+  margin-top: auto;
   padding: 5px;
   width: 100%;
   background-color: var(--bg-secondary);
@@ -19,6 +22,16 @@
       justify-content: flex-end;
     }
   }
+
+  @include phone {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+
+    ul {
+      flex-direction: column;
+    }
+  }
+
 }
 
 .list {
@@ -34,10 +47,24 @@
       transition-property: color, background-color;
       transition-duration: 250ms;
       transition-timing-function: ease-out;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.125rem;
       
       &:hover {
         background-color: var(--bg-primary);
       }
+
+      svg {
+        width: 16px;
+      }
+    }
+
+    @include phone {
+      height: max-content;
+      display: flex;
+      justify-content: center;
     }
   }
 }

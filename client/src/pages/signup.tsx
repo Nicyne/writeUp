@@ -1,14 +1,16 @@
 import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from 'hooks';
+import { useAuth, useAuthenticatedRedirect } from 'hooks';
 import { useTranslation } from 'react-i18next';
 import { emptyInputValue, IInputValue } from 'types';
+import { capitalFirstLetter } from 'utils';
 
 export function SignUp() {
   const { signUp } = useAuth();
   const [username, setUsername] = useState(emptyInputValue());
   const [password, setPassword] = useState(emptyInputValue());
   const [betaKey, setBetaKey] = useState(emptyInputValue());
+  const [error, setError] = useState('');
   const [confirmPassword, setConfirmPassword] = useState(emptyInputValue());
   const [t] = useTranslation();
   const navigate = useNavigate();
@@ -28,6 +30,9 @@ export function SignUp() {
     const result = await signUp(username.value, password.value, betaKey.value);
     if (!result.success) {
       console.log(result);
+      if (result.message) {
+        setError(result.message);
+      }
       return;
     }
 
@@ -51,6 +56,8 @@ export function SignUp() {
     }
     setter({ value, invalid, error });
   };
+
+  useAuthenticatedRedirect('/app');
 
   return (
     <div className="container">
@@ -127,6 +134,10 @@ export function SignUp() {
               />
               <span className="danger">{betaKey.error}</span>
             </label>
+
+            {error && (
+              <span className="danger">{capitalFirstLetter(error)}</span>
+            )}
 
             <button type="submit" className="w-full">
               {t('auth.signup.action')}

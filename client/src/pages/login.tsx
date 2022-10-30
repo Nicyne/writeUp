@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from 'hooks';
+import { capitalFirstLetter } from 'utils';
 
 export function Login() {
   const { login } = useAuth();
@@ -79,7 +80,9 @@ export function Login() {
               />
             </label>
 
-            <span className="danger">{error}</span>
+            {error && (
+              <span className="danger">{capitalFirstLetter(error)}</span>
+            )}
 
             <button type="submit" className="w-full">
               {t('auth.login.action')}
