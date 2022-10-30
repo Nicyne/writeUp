@@ -112,7 +112,7 @@ writeUp assumes you're setting a few environment variables. Should those not exi
 
 The following variables have to / can be set:
 
-```toml
+```env
 # Database URI
 DB_URI: mongo
 # Database Port
