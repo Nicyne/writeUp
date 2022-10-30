@@ -6,7 +6,7 @@
       <img src="https://upload.wikimedia.org/wikipedia/commons/4/48/Markdown-mark.svg" width=124 height=124 alt="Logo">
   </a>
 
-  <h3 align="center">writeUP (v.0.4.7)</h3>
+  <h3 align="center">writeUP (v.0.5.0)</h3>
 
  <p align="center">
     This is a work in progress.
