@@ -1,0 +1,88 @@
+{
+  "landing": {
+    "welcomeTo": "Welcome to",
+    "subtitle": "the free and open-source note taking platform",
+    "tryNow": "Try it now!",
+    "betaKeyNotice": "during development phase a beta-key might be required for signup.",
+    "whyWriteUp": "Why writeUp?",
+    "markdown": {
+      "title": "Support for Markdown",
+      "body": "WriteUp follows the CommonMark-Spec with custom additions such as GFM and unicode-emoji-support so that your notes will always stay readable und well structured."
+    },
+    "organization": {
+      "title": "Easy organization",
+      "body": "Using tags writeUp offers a simple and dynamic overview over both your own notes and those that have been shared with you.",
+      "note": "Keeping track has never been this easy!"
+    },
+    "sharing": {
+      "title": "Simple Sharing",
+      "body": "With but a few clicks you can open up your note to your friends or colleagues. Give them the permission to read your note, let them edit it, or revoke their access again.",
+      "note": "It's your note after all!",
+      "footnote": "This feature may be unavailable or only partially available during development."
+    },
+    "far": {
+      "title": "Fast and Reliable",
+      "body": "Built on ReactJS and written in Typescript writeUp's frontend offers a reliable and intuitive interface to manage your notes with. Combined with its blazing fast rust backend you'll never have to wait for a change to take place."
+    }
+  },
+  "common": {
+    "success": "Success",
+    "appName": "writeUp",
+    "home": "Home",
+    "inDevelopment": "In Development"
+  },
+  "nav": {
+    "imprint": "Imprint",
+    "about": "About us"
+  },
+  "notes": {
+    "deleteTooltip": "Delete note",
+    "selectNote": "Select a note.",
+    "noNoteBody": "Empty Note.",
+    "save": "Save",
+    "delete": "Delete",
+    "deleteTitle": "Delete note",
+    "deleteWarning": "This process can not be undone.",
+    "deleteSkipTip": "You can skip this dialog by holding {{key}}.",
+    "edit": "Edit",
+    "editNote": "Edit Note",
+    "new": "New",
+    "newNote": "New note",
+    "create": "Create",
+    "cancel": "Cancel",
+    "title": "Title",
+    "content": "Content",
+    "tags": "Tags"
+  },
+  "auth": {
+    "username": "Username",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "showHidePassword": "Show/hide password",
+    "signupSuccess": "Signup successful, please login.",
+    "login": {
+      "name": "Sign In",
+      "action": "Login",
+      "rememberMe": "Remember me"
+    },
+    "logout": {
+      "name": "Logout",
+      "messageSuccess": "You were successfully logged out!",
+      "messageRedirectIn": "You'll get redirected in {{count}} {{unit}}."
+    },
+    "signup": {
+      "name": "Sign Up",
+      "action": "Sign Up",
+      "betaKey": "Beta Key"
+    }
+  },
+  "time": {
+    "second": "second",
+    "seconds": "seconds"
+  },
+  "error": {
+    "404": "Page {{page}} not found.",
+    "tooShort": "{{name}} must contain {{length}} characters or more.",
+    "passwordMismatch": "Passwords do not match."
+  }
+}

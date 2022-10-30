@@ -1,0 +1,13 @@
+Dockerfile
+.dockerignore
+docker-compose.yml
+README.md
+.idea
+logs
+public
+target
+client/node_modules
+client/npm-debug.log
+client/.next
+.git
+.gitignore

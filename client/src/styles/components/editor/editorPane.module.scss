@@ -1,0 +1,16 @@
+@import '../../mixins';
+
+// don't remove important flag. Without it the form will be tiny. Don't understand why.
+.editorForm {
+  width: 75%!important;
+
+  @include phone {
+    width: 100%!important;
+  }
+
+  textarea {
+    font-weight: 300;
+    min-height: 240px;
+    resize: vertical;
+  }
+}
