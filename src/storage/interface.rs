@@ -98,8 +98,12 @@ pub trait UserManager {
     /// Returns all available meta-information about the user
     fn get_meta_information(&self) -> UserMeta;
 
+    /// Introduce a user as an associate of this one
+    fn associate_with(&self, user_id: String) -> Result<(), DBError>;
     /// Collects and returns a list of user_ids of user associated with this one
     fn get_associates(&self) -> Result<Vec<String>, DBError>;
+    /// Removes any association to a given user
+    fn revoke_association(&self, user_id: String) -> Result<(), DBError>;
 
     /// Collects and returns a list of all notes the user has access to
     fn get_all_notes<Note: NoteManager>(&self) -> Result<Vec<Note>, DBError>;
@@ -145,6 +149,14 @@ pub trait NoteManager {
     ///
     /// * `tags` - List of all the tags that are to be associated with this note
     fn set_tags(&self, tags: Vec<String>) -> Result<(), DBError>;
+
+    /// Sets the permissions of a given user regarding this note
+    ///
+    /// # Arguments
+    ///
+    /// * `user_id` - The ID of the user who's permissions are to be modified
+    /// * `perm` - The new [`PermissionLevel`]
+    fn update_share(&self, user_id: String, perm: PermissionLevel) -> Result<(), DBError>;
 
     /// Compares the prevailing [PermissionLevel] to the one required.
     ///
