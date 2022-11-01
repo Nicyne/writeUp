@@ -3,6 +3,7 @@
 //! # Endpoints:
 //!
 //! + System:
+//!     * `GET /health`             - Signal System-Readiness [[`signal_health`]]
 //!     * `GET /system`             - Get System Information [[`return_system_status`]]
 //!
 //! + Authorisation:
@@ -118,7 +119,8 @@ pub fn json_error_handler(err:JsonPayloadError, _req: &HttpRequest) -> actix_web
 /// ```
 pub fn handler_config(cfg: &mut ServiceConfig) {
     // Add all special handler
-    cfg.service(return_system_status)
+    cfg.service(signal_health)
+        .service(return_system_status)
         .service(auth::authenticate)
         .service(auth::get_auth_status)
         .service(list_notes)
@@ -137,6 +139,29 @@ pub fn handler_config(cfg: &mut ServiceConfig) {
         .service(share::create_relation)
         .service(share::remove_relation)
         .service(share::update_allowances);
+}
+
+// Endpoints
+
+/// ENDPOINT: Signals that the API is up
+///
+/// Returns one of the following HttpResponses:
+/// * `200`
+///     - API could receive the request
+///
+/// # Examples
+///
+/// ```text
+/// GET-Request at `{api-url}/health`
+/// => 200
+///     {
+///         "success": true,
+///         "time": "2022-07-30 17:53:32"
+///     }
+/// ```
+#[get("/health")]
+async fn signal_health() -> impl Responder {
+    return HttpResponse::Ok().json(ResponseObject::new())
 }
 
 /// ENDPOINT: Returns information on the system currently running.
