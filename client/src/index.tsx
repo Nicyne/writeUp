@@ -4,7 +4,11 @@ import reportWebVitals from 'reportWebVitals';
 import { App } from 'app';
 import { BrowserRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
-import { AuthContextProvider, KeyContextProvider } from 'context';
+import {
+  AuthContextProvider,
+  KeyContextProvider,
+  SystemContextProvider,
+} from 'context';
 import 'styles/index.scss';
 import 'i18n';
 
@@ -14,13 +18,15 @@ const root = ReactDOM.createRoot(
 root.render(
   <React.StrictMode>
     <HelmetProvider>
-      <AuthContextProvider>
-        <KeyContextProvider>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
-        </KeyContextProvider>
-      </AuthContextProvider>
+      <SystemContextProvider>
+        <AuthContextProvider>
+          <KeyContextProvider>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </KeyContextProvider>
+        </AuthContextProvider>
+      </SystemContextProvider>
     </HelmetProvider>
   </React.StrictMode>
 );
