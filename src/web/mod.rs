@@ -183,6 +183,10 @@ async fn signal_health() -> impl Responder {
 ///             "db": {
 ///                 "type": "mongo",
 ///                 "version": "1.0"
+///             },
+///             "pages": {
+///                 "imprint": "https://sample.website.io/imprint",
+///                 "privacy_policy": ""
 ///             }
 ///         },
 ///         "time": "2022-07-30 17:53:32"
@@ -196,6 +200,10 @@ async fn return_system_status() -> impl Responder {
         "db": {
             "type": "mongo", //TODO Read from env-var
             "version": "1.0"
+        },
+        "pages": {
+            "imprint": env::var("IMPRINT_URL").unwrap_or("".to_string()),
+            "privacy_policy": env::var("PRIVACY_URL").unwrap_or("".to_string())
         }
     }))
 }

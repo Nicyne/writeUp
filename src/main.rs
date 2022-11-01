@@ -87,12 +87,22 @@ struct Args {
     /// Specify the port to be listened to (default: 8080)
     #[clap(short = 'p', long = "port", value_parser)]
     api_port: Option<u16>,
+    /// Specify an address to forward the 'About Us'-section of the frontend to
+    #[clap(long = "imprint", value_parser)]
+    imprint_url: Option<String>,
+    /// Specify an address to forward the 'Privacy-Policy'-section of the frontend to
+    #[clap(long = "privacy-policy", value_parser)]
+    privacy_policy_url: Option<String>,
 }
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     // Parse all flags and parameter
     let args = Args::parse();
+    // Set various arguments as env-var
+    if args.imprint_url.is_some() { env::set_var("IMPRINT_URL", args.imprint_url.unwrap()) }
+    if args.privacy_policy_url.is_some() { env::set_var("PRIVACY_URL", args.privacy_policy_url.unwrap()) }
+
     // Initialize the logger
     log4rs::init_file(format!(".{}log-config.yml", MAIN_SEPARATOR), Default::default()).unwrap();
     info!("Starting up writeUp");

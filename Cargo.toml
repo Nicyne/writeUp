@@ -1,7 +1,7 @@
 [package]
 name = "writeUp"
 description = "Note-Manager optimized for performance and flexibility"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["Niclas Schmidt <dev@s-niclas.eu>", "Dimitri Kaiser <dev@darkyne.com>"]
 edition = "2021"
 
