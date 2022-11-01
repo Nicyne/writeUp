@@ -36,6 +36,7 @@
 
 #![allow(rustdoc::private_intra_doc_links)]
 #![allow(non_snake_case)]
+mod storage;
 mod web;
 mod db_access;
 
