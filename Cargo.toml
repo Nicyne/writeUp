@@ -24,8 +24,9 @@ actix-cors = "0.6.0"
 # Authentication
 argonautica = { version = "0.2", features = ["serde"] }
 jsonwebtoken = "8.0.1"
-chrono = "0.4.19"
+chrono = { version = "0.4.19", features = ["serde"] }
 thiserror = "1.0"
 # Database
-mongodb = "2.1.0"
+mongodb = { version = "2.1.0", features = ["bson-chrono-0_4"] }
 futures = "0.3.21"
+async-trait = "0.1.58"
