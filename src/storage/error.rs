@@ -6,7 +6,6 @@ use thiserror::Error;
 #[allow(dead_code)]
 #[derive(Error, Debug)]
 pub enum DBError {
-    // general
     /// An error that occurs when the supposed db-server does not respond
     #[error("could not connect to database-server")]
     ServerConnectionError,
@@ -16,24 +15,9 @@ pub enum DBError {
     /// An error that occurs when a given query fails with unknown reason
     #[error("query returned an error")]
     QueryError,
-
-    // return-based
-    /// An error that occurs when the given query could not find a fitting entry to return
-    #[error("no result found")]
-    NoResultError,
-    /// An error that occurs when the returned data does not follow the expected schema
-    #[error("failed to parse to schema")]
-    SchemaParseError,
-
-    // input-based
-    /// An error that occurs when trying to input a string containing [forbidden character](crate::storage::FORBIDDEN_CHARS)
-    #[error("sequence uses forbidden characters")]
-    InvalidSequenceError,
-    /// An error that occurs when trying to add an entry with an already existing key in the database
-    #[error("entry already exists")]
-    DuplicateError,
-
-    // various
+    /// An error that occurs when attempting an operation that contradict the current state (f.e. remove a non-existent entry)
+    #[error("invalid request: {0}")]
+    InvalidRequestError(String),
     /// An error that occurs when incorrect credentials have been supplied
     #[error("incorrect credentials")]
     IncorrectCredentialsError,
