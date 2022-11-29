@@ -27,4 +27,7 @@ pub enum DBError {
     /// An error that occurs when attempting a query with insufficient permission
     #[error("insufficient permission")]
     NoPermissionError,
+    /// An error that occurs when the database is on an older schema-version than the application
+    #[error("database requires a migration: v{0} -> v{1}")]
+    MigrationRequiredError(String, String)
 }

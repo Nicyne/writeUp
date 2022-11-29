@@ -8,7 +8,7 @@ use crate::storage::error::DBError::ServerConnectionError;
 use crate::storage::interface::{DBManager, ManagerPool};
 use crate::storage::is_safe;
 use crate::storage::mongodb::database::MongoDBDatabaseManager;
-use crate::storage::mongodb::schema::{DB_NAME, Note, NOTES, User, USER};
+use crate::storage::mongodb::schema::{DB_NAME, META, MetaKey, MetaEntry, Note, NOTES, User, USER};
 
 mod schema;
 mod database;
@@ -17,7 +17,8 @@ mod notes;
 
 
 pub struct MongoDBPool {
-    client: Client
+    client: Client,
+    version: String
 }
 
 impl MongoDBPool {
@@ -34,14 +35,38 @@ impl MongoDBPool {
 
         // Test the connection
         if db.run_command(doc! {"ping": 1}, None).await.is_ok() {
-            Ok(Box::new(MongoDBPool { client }))
+            // Get the schema-version of the database
+            let meta_collection = db.collection::<MetaEntry>(META);
+            let version_filter = doc! { "_id": MetaKey::schema_version.to_string() };
+            let version = match meta_collection.find_one(version_filter, None).await
+                .map_err(|_| DBError::QueryError("lookup of database-schema-version".to_string()))? {
+                Some(version) => version.value,
+                None => { //Database was freshly created
+                    // Populate the meta-collection
+                    meta_collection.insert_one(MetaEntry {
+                        _id: MetaKey::schema_version,
+                        value: schema::VERSION.to_string()
+                    }, None).await
+                        .map_err(|_| DBError::QueryError("insert of database-schema-version".to_string()))?;
+
+                    schema::VERSION.to_string()
+                }
+            };
+            // Check for a schema-version-mismatch between the database and the application
+            if version.ne(&schema::VERSION.to_string()) {
+                return Err(DBError::MigrationRequiredError(version, schema::VERSION.to_string()))
+            }
+
+            // Return newly created Pool
+            Ok(Box::new(MongoDBPool { client, version }))
         } else { Err(ServerConnectionError) }
     }
 }
 
 impl ManagerPool for MongoDBPool {
     fn get_manager(&self) -> Box<dyn DBManager> {
-        Box::new(MongoDBDatabaseManager::new(self.client.database(DB_NAME).clone()))
+        Box::new(MongoDBDatabaseManager::new(self.client.database(DB_NAME).clone(),
+                                             self.version.clone()))
     }
 }
 

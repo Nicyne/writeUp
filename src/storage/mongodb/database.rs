@@ -5,7 +5,6 @@ use mongodb::Database;
 use crate::storage::{Driver, gen_hash, is_safe, verify};
 use crate::storage::error::DBError;
 use crate::storage::interface::{DBManager, DBMeta, UserManager};
-use crate::storage::mongodb::schema;
 use crate::storage::mongodb::schema::{Credential, CREDENTIALS, USER, User};
 use crate::storage::mongodb::users::MongoDBUserManager;
 
@@ -15,11 +14,11 @@ pub(in crate::storage::mongodb) struct MongoDBDatabaseManager {
 }
 
 impl MongoDBDatabaseManager {
-    pub fn new(database: Database) -> MongoDBDatabaseManager {
+    pub fn new(database: Database, version: String) -> MongoDBDatabaseManager {
         MongoDBDatabaseManager {
             meta: DBMeta {
                 driver: Driver::MongoDB,
-                version: schema::VERSION.to_string()
+                version
             },
             database}
     }

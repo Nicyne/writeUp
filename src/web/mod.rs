@@ -194,13 +194,13 @@ async fn signal_health() -> impl Responder {
 ///     }
 /// ```
 #[get("/system")]
-async fn return_system_status() -> impl Responder {
+async fn return_system_status(db_pool: Data<AppData>) -> impl Responder {
     return HttpResponse::Ok().json(ResponseObjectWithPayload::new(doc! {
         "application": env!("CARGO_PKG_NAME").to_string(),
         "version": env!("CARGO_PKG_VERSION").to_string(),
         "db": {
             "type": "mongo", //TODO Read from env-var
-            "version": "1.0"
+            "version": db_pool.get_manager().get_meta_information().version.clone()
         },
         "pages": {
             "imprint": env::var("IMPRINT_URL").unwrap_or("".to_string()),

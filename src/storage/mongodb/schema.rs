@@ -1,3 +1,5 @@
+use std::fmt;
+use std::fmt::Formatter;
 use mongodb::bson::DateTime;
 use serde::{Deserialize, Serialize};
 use crate::storage::interface::PermissionLevel;
@@ -7,14 +9,36 @@ pub const VERSION: &str = "1.0";
 
 // Database-Identifier
 /// Identifier of the database inside of a mongodb-server
-pub(crate) const DB_NAME: &str = "test";
+pub(in crate::storage) const DB_NAME: &str = "test";
 // Collection-Identifier
+/// Identifier of the collection containing all meta-information
+pub const META: &str = "meta";
 /// Identifier of the collection containing all note-objects
 pub const NOTES: &str = "notes";
 /// Identifier of the collection containing all credential-objects
 pub const CREDENTIALS: &str = "creds";
 /// Identifier of the collection containing all user-objects
 pub const USER: &str = "user";
+
+/// The various meta-information in form of its id
+#[allow(non_camel_case_types)]
+#[derive(Debug, Serialize, Deserialize)]
+pub enum MetaKey {
+    /// The version-number of the schema in-use
+    schema_version
+}
+impl fmt::Display for MetaKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+/// A struct modelling a simple key-value relationship as used in the meta-collection
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MetaEntry {
+    pub _id: MetaKey,
+    pub value: String
+}
 
 /// Serves as a link between a user and a note
 #[derive(Debug, Serialize, Deserialize)]

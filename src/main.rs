@@ -158,6 +158,10 @@ async fn main() -> std::io::Result<()> {
     debug!("Database-User: {} ({})", db_user, db_passwd);
     let db_pool = Driver::MongoDB.get_pool((db_uri, db_port), (db_user, db_passwd)).await;
     if db_pool.is_err() {
+        match db_pool { //TODO migrate if necessary
+            Ok(_) => {}, //Can't happen due to earlier check
+            Err(e) => error!("Error during connection attempt - {}", e.to_string())
+        }
         error!("Failed to establish a connection to the Database. Shutting down");
         return Ok(());
     }
