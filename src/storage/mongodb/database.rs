@@ -1,3 +1,5 @@
+//! Implementation for tasks on the highest level of the database-schema
+
 use async_trait::async_trait;
 use chrono::Utc;
 use mongodb::bson::doc;
@@ -8,6 +10,7 @@ use crate::storage::interface::{DBManager, DBMeta, UserManager};
 use crate::storage::mongodb::schema::{Credential, CREDENTIALS, USER, User};
 use crate::storage::mongodb::users::MongoDBUserManager;
 
+/// Implements the [`DBManager`]-trait
 pub(in crate::storage::mongodb) struct MongoDBDatabaseManager {
     meta: DBMeta,
     database: Database

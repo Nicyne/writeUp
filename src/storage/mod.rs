@@ -1,4 +1,51 @@
 //! Storage-solution for various database-systems
+//!
+//! # Implementations
+//!
+//! Currently supports
+//!
+//!     - MongoDB
+//!
+//!
+//! # Interface
+//!
+//! The database-access is abstracted using a cascading series of traits
+//! encompassing every way of interaction this application supports.
+//!
+//! In order of magnitude these are:
+//!
+//! ## ManagerPool
+//!
+//! This trait only requires a way to generate a [`DBManager`](interface::DBManager)-instance.
+//! It is responsible for opening a connection to the database and allowing for potential pooling of connections.
+//!
+//! This is the starting point for all inquiries.
+//! All other traits can be reached from this one.
+//!
+//! ## DBManager
+//!
+//! This trait manages top-level-queries.
+//!
+//! This mostly encompasses the authentication, creation, removal and lookup of users,
+//! the latter providing the step-down to a [`UserManager`](interface::UserManager)-instance.
+//!
+//! ## UserManager
+//!
+//! This trait models the possible needs a specific user might have.
+//!
+//! This includes, but is not limited to, creating, reading and deleting notes as well as manage their associations.
+//! While managing notes it is possible to descend to a [`NoteManager`](interface::NoteManager)-instance.
+//!
+//! ## NoteManager
+//!
+//! The last trait to be reached provides ways to manipulate its assigned note.
+//! It also allows for ways to manage who has access to this note and to what degree.
+//!
+//! ---
+//! For a module to support this interface, it needs to provide a [`ManagerPool`]-instance.
+//! The remaining trait-implementations follow from its definition.
+//!
+//! For a more detailed list of supported actions see [`interface`].
 
 use std::env;
 use argonautica::{Hasher, Verifier};

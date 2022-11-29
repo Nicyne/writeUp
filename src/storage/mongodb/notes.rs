@@ -1,3 +1,5 @@
+//! Implementation for tasks regarding a specific note
+
 use std::str::FromStr;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -9,12 +11,17 @@ use crate::storage::interface::{NoteManager, NoteMeta, PermissionLevel};
 use crate::storage::mongodb::{get_note, get_user};
 use crate::storage::mongodb::schema::{Note, NOTES, User, USER};
 
+/// A struct caching values a previous note-lookup already included
 struct MongoDBNoteCache {
+    /// The title of the note
     title: String,
+    /// The content of the note
     content: String,
+    /// The tags of the note
     tags: Vec<String>
 }
 
+/// Implements the [`NoteManager`]-trait
 pub(in crate::storage::mongodb) struct MongoDBNoteManager {
     meta: NoteMeta,
     database: Database,

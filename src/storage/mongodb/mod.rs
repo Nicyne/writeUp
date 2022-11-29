@@ -1,3 +1,5 @@
+//! Implementations of all of the in [`interface`](crate::storage::interface) defined traits for use with MongoDB
+
 use std::str::FromStr;
 use mongodb::bson::doc;
 use mongodb::{Client, Database};
@@ -16,12 +18,40 @@ mod users;
 mod notes;
 
 
+/// Implements the [`ManagerPool`]-trait
 pub struct MongoDBPool {
     client: Client,
     version: String
 }
 
 impl MongoDBPool {
+    /// Creates a new MongoDBPool-instance.
+    ///
+    /// Returns [`ServerConnectionError`](DBError::ServerConnectionError) if it's not able to reach the database-server.
+    /// Returns [`MigrationRequiredError`](DBError::MigrationRequiredError) if the database uses an older version of the schema.
+    /// Returns [`QueryError`](DBError::QueryError) if any other error occurs.
+    ///
+    /// # Arguments
+    ///
+    /// * `uri` - Tuple of Strings containing the url and port of the database-server
+    /// * `cred` - Tuple of Strings containing the username and password of a database-user
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use storage::mongodb::MongoDBPool;
+    ///
+    /// let url = "localhost";
+    /// let port = "27017";
+    /// let username = "user";
+    /// let password = "pass";
+    ///
+    /// let pool = MongoDBPool::new((url, port), (username, password)).await.unwrap();
+    ///
+    /// // Every interaction with the database is done through a Manager-instance
+    /// // Instances should always be retrieved this way
+    /// let dbmanager = pool.get_manager();
+    /// ```
     pub async fn new(uri: (String, String), cred: (String, String))
         -> Result<Box<dyn ManagerPool>, DBError> {
         // Configure the connection

@@ -1,3 +1,5 @@
+//! Implementation for tasks regarding a specific user
+
 use std::str::FromStr;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -11,6 +13,7 @@ use crate::storage::mongodb::get_user;
 use crate::storage::mongodb::notes::MongoDBNoteManager;
 use crate::storage::mongodb::schema::{Note, NOTES, User, USER};
 
+/// Implements the [`UserManager`]-trait
 pub(in crate::storage::mongodb) struct MongoDBUserManager {
     meta: UserMeta,
     database: Database

@@ -1,3 +1,5 @@
+//! The schema used within the database
+
 use std::fmt;
 use std::fmt::Formatter;
 use mongodb::bson::DateTime;
