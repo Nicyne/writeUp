@@ -80,7 +80,7 @@ mod json_objects {
 ///
 /// * `req` - The HttpRequest that was made
 /// * `note_req` - The body of the request parsed to a NoteRequest-object
-/// * `db` - The AppData containing a Mutex-secured Database-connection
+/// * `appdata` - An [`AppData`]-instance
 ///
 /// # Examples
 ///
@@ -126,10 +126,10 @@ mod json_objects {
 ///     }
 /// ```
 #[post("/note")]
-pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, db_pool: Data<AppData>) -> impl Responder {
+pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, appdata: Data<AppData>) -> impl Responder {
     let note_req = note_req.into_inner();
     // Grab the user to add a note to
-    match get_user_from_request(req, &db_pool.get_manager()).await {
+    match get_user_from_request(req, &appdata.get_manager()).await {
         Ok(user_manager) => {
             // Add the new note to the db
             match user_manager.add_note(&note_req.title).await {
@@ -165,7 +165,7 @@ pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, db_poo
 ///
 /// * `path` - A Path-object containing the id of the to-be-returned note
 /// * `req` - The HttpRequest that was made
-/// * `db` - The AppData containing a Mutex-secured Database-connection
+/// * `appdata` - An [`AppData`]-instance
 ///
 /// # Examples
 ///
@@ -221,11 +221,11 @@ pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, db_poo
 ///     }
 /// ```
 #[get("/note/{note_id}")]
-pub async fn get_note(path: Path<String>, req: HttpRequest, db_pool: Data<AppData>) -> impl Responder {
+pub async fn get_note(path: Path<String>, req: HttpRequest, appdata: Data<AppData>) -> impl Responder {
     let note_id = path.into_inner();
 
     // Get the user
-    match get_user_from_request(req, &db_pool.get_manager()).await {
+    match get_user_from_request(req, &appdata.get_manager()).await {
         Ok(user_manager) => {
             // Attempt to get the note
             match user_manager.get_note(&note_id).await {
@@ -259,7 +259,7 @@ pub async fn get_note(path: Path<String>, req: HttpRequest, db_pool: Data<AppDat
 /// * `path` - A Path-object containing the id of the to-be-deleted note
 /// * `req` - The HttpRequest that was made
 /// * `note_req` - The body of the request parsed to a NoteRequest-object
-/// * `db` - The AppData containing a Mutex-secured Database-connection
+/// * `appdata` - An [`AppData`]-instance
 ///
 /// # Examples
 ///
@@ -336,12 +336,12 @@ pub async fn get_note(path: Path<String>, req: HttpRequest, db_pool: Data<AppDat
 ///     }
 /// ```
 #[put("/note/{note_id}")]
-pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Json<NoteRequest>, db_pool: Data<AppData>) -> impl Responder {
+pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Json<NoteRequest>, appdata: Data<AppData>) -> impl Responder {
     let note_req = note_req.into_inner();
     let note_id = path.into_inner();
 
     // Get the user
-    match get_user_from_request(req, &db_pool.get_manager()).await {
+    match get_user_from_request(req, &appdata.get_manager()).await {
         Ok(user_manager) => {
             // Attempt to get the note
             match user_manager.get_note(&note_id).await {
@@ -388,7 +388,7 @@ pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Js
 ///
 /// * `path` - A Path-object containing the id of the to-be-deleted note
 /// * `req` - The HttpRequest that was made
-/// * `db` - The AppData containing a Mutex-secured Database-connection
+/// * `appdata` - An [`AppData`]-instance
 ///
 /// # Examples
 ///
@@ -431,10 +431,10 @@ pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Js
 ///     }
 /// ```
 #[delete("/note/{note_id}")]
-pub async fn remove_note(path: Path<String>, req: HttpRequest, db_pool: Data<AppData>) -> impl Responder {
+pub async fn remove_note(path: Path<String>, req: HttpRequest, appdata: Data<AppData>) -> impl Responder {
     let note_id = path.into_inner();
 
-    match get_user_from_request(req, &db_pool.get_manager()).await {
+    match get_user_from_request(req, &appdata.get_manager()).await {
         Ok(user_manager) => {
             match user_manager.remove_note(&note_id).await {
                 Ok(_) => HttpResponse::Ok().json(ResponseObject::new()),

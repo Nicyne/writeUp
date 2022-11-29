@@ -56,7 +56,7 @@ mod json_objects {
 ///
 /// # Arguments
 ///
-/// * `db` - The AppData containing a Mutex-secured Database-connection
+/// * `appdata` - An [`AppData`]-instance
 /// * `creds` - From JSON generated TokenRequest including the credentials to be checked
 ///
 /// # Examples
@@ -90,8 +90,8 @@ mod json_objects {
 ///     }
 /// ```
 #[post("/auth")]
-pub async fn authenticate(db_pool: Data<AppData>, creds: web::Json<json_objects::TokenRequest>) -> impl Responder {
-    let db = db_pool.get_manager();
+pub async fn authenticate(appdata: Data<AppData>, creds: web::Json<json_objects::TokenRequest>) -> impl Responder {
+    let db = appdata.get_manager();
     // Verify their password
     match db.auth_user(&creds.username, &creds.password).await {
         Ok(_user_manager) => {
@@ -133,7 +133,7 @@ pub async fn authenticate(db_pool: Data<AppData>, creds: web::Json<json_objects:
 /// # Arguments
 ///
 /// * `req` - The HttpRequest that was made
-/// * `db` - The AppData containing a Mutex-secured Database-connection
+/// * `appdata` - An [`AppData`]-instance
 ///
 /// # Examples
 ///
@@ -157,8 +157,8 @@ pub async fn authenticate(db_pool: Data<AppData>, creds: web::Json<json_objects:
 ///     }
 /// ```
 #[get("/auth")]
-pub async fn get_auth_status(req: HttpRequest, db_pool: Data<AppData>) -> impl Responder {
-    match get_user_from_request(req, &db_pool.get_manager()).await {
+pub async fn get_auth_status(req: HttpRequest, appdata: Data<AppData>) -> impl Responder {
+    match get_user_from_request(req, &appdata.get_manager()).await {
         Ok(user_manager) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(
             doc! { "username": user_manager.get_meta_information().id.clone() })),
         Err(APIError::AuthenticationError) => {

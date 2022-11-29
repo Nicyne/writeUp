@@ -63,7 +63,7 @@ mod json_objects {
 ///
 /// * `req` - The HttpRequest that was made
 /// * `user_req` - The body of the request parsed to a UserRequest-object
-/// * `db` - The AppData containing a Mutex-secured Database-connection
+/// * `appdata` - An [`AppData`]-instance
 ///
 /// # Examples
 ///
@@ -130,7 +130,7 @@ mod json_objects {
 ///     }
 /// ```
 #[post("/user")]
-pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db_pool: Data<AppData>) -> impl Responder {
+pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, appdata: Data<AppData>) -> impl Responder {
     // Check if still logged in
     if get_user_id_from_request(req).is_ok() { //TODO? necessary to be logged out?
         return APIError::NoPermissionError.gen_response()
@@ -141,7 +141,7 @@ pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db_poo
     }
 
     // Add user
-    match db_pool.get_manager().add_user(&user_req.username, &user_req.password).await {
+    match appdata.get_manager().add_user(&user_req.username, &user_req.password).await {
         Ok(user_manager) => HttpResponse::Created().json(ResponseObjectWithPayload::new(UserResponse::from(&user_manager).await)),
         Err(DBError::InvalidRequestError(_)) => APIError::InvalidCredentialsError(format!("username '{}' already exists", user_req.username)).gen_response(),
         Err(_) => APIError::QueryError("failed to add user".to_string()).gen_response()
@@ -161,7 +161,7 @@ pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db_poo
 /// # Arguments
 ///
 /// * `req` - The HttpRequest that was made
-/// * `db` - The AppData containing a Mutex-secured Database-connection
+/// * `appdata` - An [`AppData`]-instance
 ///
 /// # Examples
 ///
@@ -188,8 +188,8 @@ pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db_poo
 ///     }
 /// ```
 #[get("/user")]
-pub async fn get_user(req: HttpRequest, db_pool: Data<AppData>) -> impl Responder {
-    match get_user_from_request(req, &db_pool.get_manager()).await {
+pub async fn get_user(req: HttpRequest, appdata: Data<AppData>) -> impl Responder {
+    match get_user_from_request(req, &appdata.get_manager()).await {
         Ok(user_manager) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(
             UserResponse::from(&user_manager).await)),
         Err(e) => e.gen_response()
@@ -209,7 +209,7 @@ pub async fn get_user(req: HttpRequest, db_pool: Data<AppData>) -> impl Responde
 /// # Arguments
 ///
 /// * `req` - The HttpRequest that was made
-/// * `db` - The AppData containing a Mutex-secured Database-connection
+/// * `appdata` - An [`AppData`]-instance
 ///
 /// # Examples
 ///
@@ -232,8 +232,8 @@ pub async fn get_user(req: HttpRequest, db_pool: Data<AppData>) -> impl Responde
 ///     }
 /// ```
 #[delete("/user")]
-pub async fn remove_user(req: HttpRequest, db_pool: Data<AppData>) -> impl Responder { //TODO add security check or something (maybe have a body with the user-information or something, password?)
-    let db_manager = db_pool.get_manager();
+pub async fn remove_user(req: HttpRequest, appdata: Data<AppData>) -> impl Responder { //TODO add security check or something (maybe have a body with the user-information or something, password?)
+    let db_manager = appdata.get_manager();
     match get_user_from_request(req, &db_manager).await {
         Ok(user_manager) => {
             match db_manager.remove_user(&user_manager.get_meta_information().id).await {

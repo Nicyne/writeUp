@@ -70,7 +70,7 @@ mod json_objects {
 /// # Arguments
 ///
 /// * `req` - The HttpRequest that was made
-/// * `db` - The AppData containing a Mutex-secured Database-connection
+/// * `appdata` - An [`AppData`]-instance
 ///
 /// # Examples
 ///
@@ -96,8 +96,8 @@ mod json_objects {
 ///     }
 /// ```
 #[get("/share")]
-pub async fn get_relation_code(req: HttpRequest, db_pool: Data<AppData>) -> impl Responder {
-    match get_user_from_request(req, &db_pool.get_manager()).await {
+pub async fn get_relation_code(req: HttpRequest, appdata: Data<AppData>) -> impl Responder {
+    match get_user_from_request(req, &appdata.get_manager()).await {
         Ok(user_manager) => {
             match gen_invite(&user_manager.get_meta_information().id) {
                 Ok(code) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(InviteBody {code})),
@@ -124,7 +124,7 @@ pub async fn get_relation_code(req: HttpRequest, db_pool: Data<AppData>) -> impl
 ///
 /// * `req` - The HttpRequest that was made
 /// * `code_req` - The body of the request parsed to an InviteBody-object
-/// * `db` - The AppData containing a Mutex-secured Database-connection
+/// * `appdata` - An [`AppData`]-instance
 ///
 /// # Examples
 ///
@@ -182,8 +182,8 @@ pub async fn get_relation_code(req: HttpRequest, db_pool: Data<AppData>) -> impl
 ///     }
 /// ```
 #[post("/share")]
-pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, db_pool: Data<AppData>) -> impl Responder {
-    match get_user_from_request(req, &db_pool.get_manager()).await {
+pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, appdata: Data<AppData>) -> impl Responder {
+    match get_user_from_request(req, &appdata.get_manager()).await {
         Ok(user_manager) => {
             match get_user_id_from_invite_code(&code_req.code) {
                 Ok(invite_user_id) => {
@@ -218,7 +218,7 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
 ///
 /// * `path` - A Path-object containing the id of the related user
 /// * `req` - The HttpRequest that was made
-/// * `db` - The AppData containing a Mutex-secured Database-connection
+/// * `appdata` - An [`AppData`]-instance
 ///
 /// # Examples
 ///
@@ -261,8 +261,8 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
 ///     }
 /// ```
 #[delete("/share/{user_id}")]
-pub async fn remove_relation(path: Path<String>, req: HttpRequest, db_pool: Data<AppData>) -> impl Responder {
-    match get_user_from_request(req, &db_pool.get_manager()).await {
+pub async fn remove_relation(path: Path<String>, req: HttpRequest, appdata: Data<AppData>) -> impl Responder {
+    match get_user_from_request(req, &appdata.get_manager()).await {
         Ok(user_manager) => {
             match user_manager.revoke_association(&path.into_inner()).await {
                 Ok(_) => HttpResponse::Ok().json(ResponseObject::new()),
@@ -294,7 +294,7 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, db_pool: Data
 /// * `path` - A Path-object containing the id of the to-be-shared note
 /// * `req` - The HttpRequest that was made
 /// * `allow_req` - The body of the request parsed to a Vector containing ShareRequest-objects
-/// * `db` - The AppData containing a Mutex-secured Database-connection
+/// * `appdata` - An [`AppData`]-instance
 ///
 /// # Examples
 ///
@@ -377,9 +377,9 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, db_pool: Data
 ///     }
 /// ```
 #[put("/share/{note_id}")]
-pub async fn update_allowances(path: Path<String>, req: HttpRequest, allow_req: web::Json<Vec<ShareRequest>>, db_pool: Data<AppData>) -> impl Responder {
+pub async fn update_allowances(path: Path<String>, req: HttpRequest, allow_req: web::Json<Vec<ShareRequest>>, appdata: Data<AppData>) -> impl Responder {
 
-    match get_user_from_request(req, &db_pool.get_manager()).await {
+    match get_user_from_request(req, &appdata.get_manager()).await {
         Ok(user_manager) => {
             match user_manager.get_note(&path.into_inner()).await {
                 Ok(note_manager) => {

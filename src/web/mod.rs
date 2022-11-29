@@ -171,6 +171,10 @@ async fn signal_health() -> impl Responder {
 /// * `200` [Body: JSON]
 ///     - System-information could be compiled
 ///
+/// # Arguments:
+///
+/// * `appdata` - An [`AppData`]-instance
+///
 /// # Examples
 ///
 /// ```text
@@ -222,7 +226,7 @@ async fn return_system_status(db_pool: Data<AppData>) -> impl Responder {
 /// # Arguments
 ///
 /// * `req` - The HttpRequest that was made
-/// * `db` - The AppData containing a Mutex-secured Database-connection
+/// * `appdata` - An [`AppData`]-instance
 ///
 /// # Examples
 ///
@@ -264,7 +268,7 @@ async fn return_system_status(db_pool: Data<AppData>) -> impl Responder {
 ///     }
 /// ```
 #[get("/notes")]
-async fn list_notes(req: HttpRequest, db_pool: Data<AppData>) -> impl Responder {
+async fn list_notes(req: HttpRequest, appdata: Data<AppData>) -> impl Responder {
     // Define Response-Object
     /// Response-body containing a limited amount of information on a note
     #[derive(Serialize)]
@@ -279,7 +283,7 @@ async fn list_notes(req: HttpRequest, db_pool: Data<AppData>) -> impl Responder 
         allowance: PermissionLevel
     }
 
-    let db = db_pool.get_manager();
+    let db = appdata.get_manager();
     match get_user_from_request(req, &db).await {
         Ok(user_manager) => {
             let mut response_vector = Vec::new();

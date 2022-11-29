@@ -95,11 +95,12 @@ struct Args {
     privacy_policy_url: Option<String>,
 }
 
+/// A struct containing everything that the application might need during its runtime
 pub struct AppData {
     db_pool: Box<dyn ManagerPool>
 }
-
 impl AppData {
+    /// Returns a [`DBManager`]-instance from the database-connection-pool
     pub fn get_manager(&self) -> Box<dyn DBManager> {
         self.db_pool.get_manager()
     }
