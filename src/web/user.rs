@@ -1,14 +1,11 @@
 //! Endpoints regarding user-objects and their manipulation
 
 use std::env;
-use std::sync::Mutex;
 use actix_web::{get, delete, post, Responder, HttpRequest, HttpResponse, web};
 use actix_web::web::Data;
 use mongodb::bson::doc;
-use mongodb::Database;
-use crate::db_access::{Credential, CREDENTIALS, del_dbo_by_id, get_dbo_by_id, insert_dbo, Note, NOTES, update_dbo_by_id, User, USER};
-use crate::db_access::AllowanceLevel::Owner;
-use crate::db_access::DBError::{NoDocumentFoundError, QueryError};
+use crate::AppData;
+use crate::storage::error::DBError;
 use crate::web::auth::{gen_logout_response, get_user_from_request, get_user_id_from_request};
 use crate::web::error::APIError;
 use crate::web::ResponseObjectWithPayload;
@@ -18,6 +15,7 @@ use crate::web::user::json_objects::{UserRequest, UserResponse};
 /// Structs modelling the request- and response-bodies
 mod json_objects {
     use serde::{Serialize, Deserialize};
+    use crate::storage::interface::UserManager;
 
     /// Body of a response containing user-information
     #[derive(Serialize)]
@@ -26,6 +24,15 @@ mod json_objects {
         pub username: String,
         /// All connected user
         pub relations: Vec<String>
+    }
+
+    impl UserResponse {
+        pub async fn from(user_manager: &Box<dyn UserManager>) -> UserResponse {
+            UserResponse {
+                username: user_manager.get_meta_information().name.clone(),
+                relations: user_manager.get_associates().await.unwrap() //TODO Catch error
+            }
+        }
     }
 
     /// Body of a request for a new user
@@ -123,7 +130,7 @@ mod json_objects {
 ///     }
 /// ```
 #[post("/user")]
-pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db: Data<Mutex<Database>>) -> impl Responder {
+pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db_pool: Data<AppData>) -> impl Responder {
     // Check if still logged in
     if get_user_id_from_request(req).is_ok() { //TODO? necessary to be logged out?
         return APIError::NoPermissionError.gen_response()
@@ -132,26 +139,12 @@ pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db: Da
     if user_req.beta_key != env::var("BETA_KEY").unwrap() {
         return APIError::NoPermissionError.gen_response()
     }
-    let new_user = user_req.into_inner();
-    // Check for unique username
-    match get_dbo_by_id::<Credential>(CREDENTIALS, new_user.username.clone(), &db).await {
-        Err(NoDocumentFoundError) => {
-            // Prepare the new dbos
-            let creds = Credential::new(new_user.username.clone(), &new_user.password);
-            let user = User {_id: new_user.username, allowances: Vec::new(), connections: Vec::new()};
 
-            // Insert the new dbos
-            let add_cred = insert_dbo::<Credential>(CREDENTIALS, &creds, &db);
-            let add_user = insert_dbo::<User>(USER, &user, &db);
-
-            // Check for error
-            if add_cred.await.is_err() || add_user.await.is_err() {
-                return APIError::QueryError("user/credentials could not be created".to_string()).gen_response()
-            }
-            HttpResponse::Created().json(ResponseObjectWithPayload::new(UserResponse {username: user._id.clone(), relations: user.connections.clone()})) //TODO? login afterwards?
-        }
-        Ok(_) => APIError::InvalidCredentialsError("username already exists".to_string()).gen_response(),
-        Err(_) => APIError::QueryError("username could not be checked on uniqueness".to_string()).gen_response()
+    // Add user
+    match db_pool.get_manager().add_user(&user_req.username, &user_req.password).await {
+        Ok(user_manager) => HttpResponse::Created().json(ResponseObjectWithPayload::new(UserResponse::from(&user_manager).await)),
+        Err(DBError::InvalidRequestError(_)) => APIError::InvalidCredentialsError(format!("username '{}' already exists", user_req.username)).gen_response(),
+        Err(_) => APIError::QueryError("failed to add user".to_string()).gen_response()
     }
 }
 
@@ -195,10 +188,10 @@ pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, db: Da
 ///     }
 /// ```
 #[get("/user")]
-pub async fn get_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
-    match get_user_from_request(req, &db).await {
-        Ok(user) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(
-            UserResponse { username: user._id, relations: user.connections })),
+pub async fn get_user(req: HttpRequest, db_pool: Data<AppData>) -> impl Responder {
+    match get_user_from_request(req, &db_pool.get_manager()).await {
+        Ok(user_manager) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(
+            UserResponse::from(&user_manager).await)),
         Err(e) => e.gen_response()
     }
 }
@@ -239,57 +232,15 @@ pub async fn get_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Respo
 ///     }
 /// ```
 #[delete("/user")]
-pub async fn remove_user(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder { //TODO add security check or something (maybe have a body with the user-information or something, password?)
-    match get_user_from_request(req, &db).await { //TODO This function borrows a lot of lines from other endpoints
-        Ok(user) => {
-            // Remove all notes and their allowances
-            let mut note_deletion_error = Vec::new();
-            for note in user.allowances { //TODO Multithread
-                if note.level == Owner {
-                    // Remove all allowances
-                    let users = db.lock().unwrap().collection::<User>(USER);
-                    match users.update_many(doc! {}, doc! {"$pull": {"allowances": {"note_id": &note.note_id}}}, None).await { //TODO Dont queue through all notes
-                        Ok(_res) => {
-                            // Remove note
-                            if del_dbo_by_id::<Note>(NOTES, note.note_id, &db).await.is_err() {
-                                note_deletion_error.push(QueryError) //TODO error-report?
-                            }
-                        }
-                        Err(_) => note_deletion_error.push(QueryError) //TODO error-report?
-                    }
-                }
+pub async fn remove_user(req: HttpRequest, db_pool: Data<AppData>) -> impl Responder { //TODO add security check or something (maybe have a body with the user-information or something, password?)
+    let db_manager = db_pool.get_manager();
+    match get_user_from_request(req, &db_manager).await {
+        Ok(user_manager) => {
+            match db_manager.remove_user(&user_manager.get_meta_information().id).await {
+                Ok(_) => gen_logout_response(),
+                Err(_) => APIError::QueryError("failed to remove user".to_string()).gen_response()
             }
-            // Check for missed notes/allowances
-            if !note_deletion_error.is_empty() {
-                return APIError::QueryError("notes and allowances could not be fully removed".to_string()).gen_response()
-            }
-
-            // Remove all Relations with other user
-            let mut connection_deletion_error = Vec::new();
-            for conn_user in user.connections { //TODO Multithread
-                if update_dbo_by_id::<User>(USER, conn_user,
-                                         doc! {"$pull": {"connections": &user._id}},
-                                         &db).await.is_err() {
-                    connection_deletion_error.push(QueryError) //TODO error-report?
-                }
-            }
-            // Check for missed relations
-            if !connection_deletion_error.is_empty() {
-                return APIError::QueryError("relations to other user could not be fully removed".to_string()).gen_response()
-            }
-
-            // Remove the user and his credentials
-            let user_removal = del_dbo_by_id::<User>(USER,
-                                                     user._id.clone(), &db);
-            let cred_removal = del_dbo_by_id::<Credential>(CREDENTIALS,
-                                                           user._id.clone(), &db);
-            if user_removal.await.is_err() || cred_removal.await.is_err() {
-                return APIError::QueryError("user and/or credentials could not be removed".to_string()).gen_response()
-            }
-
-            // Log the user out
-            gen_logout_response()
-        }
+        },
         Err(e) => e.gen_response()
     }
 }

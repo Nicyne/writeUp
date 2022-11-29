@@ -1,12 +1,11 @@
 //! Endpoints regarding note-objects and their manipulation
 
-use std::sync::Mutex;
 use actix_web::{get, put, delete, post, Responder, HttpRequest, HttpResponse, web::{Data, Path}, web};
 use mongodb::bson::doc;
-use mongodb::Database;
-use crate::db_access::{AllowanceLevel, DBError, del_dbo_by_id, get_dbo_by_id, insert_dbo, is_safe, Note, NOTES, update_dbo_by_id, User, USER};
+use crate::AppData;
+use crate::storage::error::DBError;
 use crate::web::error::APIError;
-use crate::web::auth::{get_user_from_request, get_user_id_from_request};
+use crate::web::auth::get_user_from_request;
 use crate::web::note::json_objects::{NoteRequest, NoteResponse};
 use crate::web::{ResponseObject, ResponseObjectWithPayload};
 
@@ -14,7 +13,7 @@ use crate::web::{ResponseObject, ResponseObjectWithPayload};
 /// Structs modelling the request- and response-bodies
 mod json_objects {
     use serde::{Serialize, Deserialize};
-    use crate::db_access::{AllowanceLevel, Note};
+    use crate::storage::interface::{NoteManager, PermissionLevel};
 
     /// Body of a request containing a note
     #[derive(Deserialize)]
@@ -26,16 +25,6 @@ mod json_objects {
         /// Tags associated with the note
         pub tags: Vec<String>
     }
-    impl NoteRequest {
-        /// Converts the Request-body into an actual Note-object
-        ///
-        /// # Arguments
-        ///
-        /// * `owner_id` - The user that owns the note
-        pub fn to_note(self, owner_id: &str) -> Note {
-            Note { title: self.title, content: self.content, owner_id: owner_id.to_string(), tags: self.tags }
-        }
-    }
 
     /// Body of a response containing a note
     #[derive(Serialize)]
@@ -45,7 +34,35 @@ mod json_objects {
         /// The note-object
         pub note: Note,
         /// The level of access the requesting user has regarding the note
-        pub allowance: AllowanceLevel
+        pub allowance: PermissionLevel
+    }
+
+    impl NoteResponse {
+        pub async fn from(note_manager: &Box<dyn NoteManager>) -> NoteResponse { //TODO Catch error
+            NoteResponse {
+                note_id: note_manager.get_meta_information().id.clone(),
+                note: Note {
+                    title: note_manager.get_title().await.unwrap(),
+                    content: note_manager.get_content().await.unwrap(),
+                    owner_id: note_manager.get_meta_information().owner_id.clone(),
+                    tags: note_manager.get_tags().await.unwrap()
+                },
+                allowance: note_manager.get_meta_information().permission}
+        }
+    }
+
+    //TODO REMOVE
+    /// A struct modelling a note
+    #[derive(Debug, Serialize)]
+    pub struct Note {
+        /// The title
+        pub title: String,
+        /// The actual note
+        pub content: String,
+        /// The user owning this note
+        pub owner_id: String,
+        /// The tags associated with this note
+        pub tags: Vec<String>
     }
 }
 
@@ -109,26 +126,21 @@ mod json_objects {
 ///     }
 /// ```
 #[post("/note")]
-pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, db: Data<Mutex<Database>>) -> impl Responder {
+pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, db_pool: Data<AppData>) -> impl Responder {
     let note_req = note_req.into_inner();
     // Grab the user to add a note to
-    match get_user_from_request(req, &db).await {
-        Ok(user) => {
+    match get_user_from_request(req, &db_pool.get_manager()).await {
+        Ok(user_manager) => {
             // Add the new note to the db
-            let note = note_req.to_note(&user._id);
-            match insert_dbo::<Note>(NOTES, &note, db.get_ref()).await {
-                Ok(res) => {
-                    // Add an allowance to the user
-                    let note_id = res.inserted_id.as_object_id().unwrap().to_string();
-                    match update_dbo_by_id::<User>(USER, user._id,
-                                                   doc! {"$push": {"allowances": {"note_id": &note_id, "level": "Owner"}}},
-                                                   db.get_ref()).await {
-                        Ok(_res) => HttpResponse::Created() // Return the created note
-                            .json(ResponseObjectWithPayload::new(NoteResponse { note_id, note, allowance: AllowanceLevel::Owner})), //TODO? Re-fetch object instead of putting together
-                        Err(_) => APIError::QueryError("note could not be linked to user-account".to_string()).gen_response() //unknown
-                    }
-                }
-                Err(_) => APIError::QueryError("note could not be saved to db".to_string()).gen_response() //unknown
+            match user_manager.add_note(&note_req.title).await {
+                Ok(mut note_manager) => {
+                    if !note_req.content.is_empty() && note_manager.set_content(note_req.content).await.is_err() {
+                        return APIError::QueryError("failed to set content of note".to_string()).gen_response() }
+                    if !note_req.tags.is_empty() && note_manager.set_tags(note_req.tags).await.is_err() {
+                        return APIError::QueryError("failed to set tags of note".to_string()).gen_response() }
+                    HttpResponse::Created().json(ResponseObjectWithPayload::new(NoteResponse::from(&note_manager).await))
+                },
+                Err(_) => APIError::QueryError("note could not be saved to db".to_string()).gen_response() //unknown //TODO Catch various errors
             }
         }
         Err(e) => e.gen_response()
@@ -209,23 +221,21 @@ pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, db: Da
 ///     }
 /// ```
 #[get("/note/{note_id}")]
-pub async fn get_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
+pub async fn get_note(path: Path<String>, req: HttpRequest, db_pool: Data<AppData>) -> impl Responder {
     let note_id = path.into_inner();
-    // Check for potential injection-attempt
-    if !is_safe(&note_id) {
-        return APIError::InvalidIDError.gen_response()
-    }
-    // Check if the user has clearance to view this note
-    match get_allow_level_for_note(&note_id, req.clone(), db.get_ref()).await {
-        Ok(allowance) => {
-            // Get note and return it
-            match get_dbo_by_id::<Note>(NOTES, note_id.clone(), db.get_ref()).await {
-                Ok(note) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(NoteResponse { note_id, note, allowance})),
-                Err(DBError::NoDocumentFoundError) => APIError::DBInconsistencyError(
-                    get_user_id_from_request(req).unwrap(), note_id).gen_response(), //user has allowance for a nonexisting note
-                Err(_) => APIError::QueryError("failed to retrieve note".to_string()).gen_response() //unknown
+
+    // Get the user
+    match get_user_from_request(req, &db_pool.get_manager()).await {
+        Ok(user_manager) => {
+            // Attempt to get the note
+            match user_manager.get_note(&note_id).await {
+                Ok(note_manager) => HttpResponse::Ok().json(
+                    ResponseObjectWithPayload::new(NoteResponse::from(&note_manager).await)),
+                Err(DBError::NoPermissionError) => APIError::NoPermissionError.gen_response(),
+                Err(DBError::InvalidSequenceError(_)) => APIError::InvalidIDError.gen_response(),
+                Err(_) => APIError::QueryError("failed to retrieve note".to_string()).gen_response()
             }
-        }
+        },
         Err(e) => e.gen_response()
     }
 }
@@ -326,31 +336,36 @@ pub async fn get_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Datab
 ///     }
 /// ```
 #[put("/note/{note_id}")]
-pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Json<NoteRequest>, db: Data<Mutex<Database>>) -> impl Responder {
+pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Json<NoteRequest>, db_pool: Data<AppData>) -> impl Responder {
     let note_req = note_req.into_inner();
     let note_id = path.into_inner();
-    // Check for potential injection-attempt
-    if !is_safe(&note_id) {
-        return APIError::InvalidIDError.gen_response()
-    }
-    // Check if the user has the clearance to update the note
-    match get_allow_level_for_note(&note_id, req.clone(), &db).await {
-        Ok(AllowanceLevel::Read) => APIError::NoPermissionError.gen_response(), //Read-Only Access
-        Ok(allowance) => {
-            // Update all fields of the note
-            match update_dbo_by_id::<Note>(NOTES, note_id.clone(), doc! {"$set": { //TODO? Only update changed fields
-                "title": &note_req.title,
-                "content": &note_req.content,
-                "tags": &note_req.tags
-            }}, &db).await {
-                Ok(_res) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(NoteResponse { //TODO? Re-fetch object instead of putting together
-                    note_id,
-                    note: note_req.to_note(&get_user_id_from_request(req).unwrap()),
-                    allowance
-                })),
-                Err(_) => APIError::QueryError("update of note failed".to_string()).gen_response() //unknown
+
+    // Get the user
+    match get_user_from_request(req, &db_pool.get_manager()).await {
+        Ok(user_manager) => {
+            // Attempt to get the note
+            match user_manager.get_note(&note_id).await {
+                Ok(mut note_manager) => {
+                    let mut update_results = Vec::new();
+                    update_results.push(note_manager.set_title(note_req.title).await);
+                    update_results.push(note_manager.set_content(note_req.content).await);
+                    update_results.push(note_manager.set_tags(note_req.tags).await);
+
+                    for result in update_results {
+                        match result {
+                            Ok(_) => continue,
+                            Err(DBError::NoPermissionError) => return APIError::NoPermissionError.gen_response(),
+                            Err(_) => return APIError::QueryError("update of note failed".to_string()).gen_response()
+                        }
+                    }
+
+                    HttpResponse::Ok().json(ResponseObjectWithPayload::new(NoteResponse::from(&note_manager).await))
+                },
+                Err(DBError::NoPermissionError) => APIError::NoPermissionError.gen_response(),
+                Err(DBError::InvalidSequenceError(_)) => APIError::InvalidIDError.gen_response(),
+                Err(_) => APIError::QueryError("failed to retrieve note".to_string()).gen_response()
             }
-        }
+        },
         Err(e) => e.gen_response()
     }
 }
@@ -416,50 +431,19 @@ pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Js
 ///     }
 /// ```
 #[delete("/note/{note_id}")]
-pub async fn remove_note(path: Path<String>, req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
+pub async fn remove_note(path: Path<String>, req: HttpRequest, db_pool: Data<AppData>) -> impl Responder {
     let note_id = path.into_inner();
-    // Check for potential injection-attempt
-    if !is_safe(&note_id) {
-        return APIError::InvalidIDError.gen_response()
-    }
-    // Check if the user has the clearance to deleting the note
-    match get_allow_level_for_note(&note_id, req, &db).await {
-        Ok(AllowanceLevel::Owner) =>  {
-            // Remove all allowances
-            let users = db.lock().unwrap().collection::<User>(USER);
-            match users.update_many(doc! {}, doc! {"$pull": {"allowances": {"note_id": &note_id}}}, None).await { //TODO Dont queue through all notes
-                Ok(_res) => {
-                    // Remove note
-                    match del_dbo_by_id::<Note>(NOTES, note_id, &db).await {
-                        Ok(_res) => HttpResponse::Ok().json(ResponseObject::new()),
-                        Err(_) => APIError::QueryError("note-object could not be removed".to_string()).gen_response()
-                    }
-                }
-                Err(_) => APIError::QueryError("not all references could be removed".to_string()).gen_response()
-            }
-        }
-        Ok(_) =>  APIError::NoPermissionError.gen_response(),
-        Err(e) => e.gen_response()
-    }
-}
 
-/// Looks up and returns the level of access the current user has regarding the given note
-///
-/// # Arguments
-///
-/// * `note_id` - The identifier of the note in question
-/// * `req` - The HttpRequest that was made
-/// * `db` - A reference to the Mutex-secured Database-connection
-pub async fn get_allow_level_for_note(note_id: &str, req: HttpRequest, db: &Mutex<Database>) -> Result<AllowanceLevel, APIError> {
-    // Get the User making the request
-    match get_user_from_request(req, db).await {
-        Ok(user) => {
-            // Check if there is an allowance for this note
-            match user.allowances.iter().find(|all| all.note_id.eq(&note_id)) {
-                Some(allowance) => Ok(allowance.clone().level),
-                None => Err(APIError::NoPermissionError)
+    match get_user_from_request(req, &db_pool.get_manager()).await {
+        Ok(user_manager) => {
+            match user_manager.remove_note(&note_id).await {
+                Ok(_) => HttpResponse::Ok().json(ResponseObject::new()),
+                Err(DBError::NoPermissionError) => APIError::NoPermissionError.gen_response(),
+                Err(DBError::InvalidSequenceError(_)) => APIError::InvalidIDError.gen_response(),
+                Err(DBError::MissingEntryError(_,_)) => APIError::NoPermissionError.gen_response(), // note doesnt exist
+                Err(_) => APIError::QueryError("failed to remove note".to_string()).gen_response()
             }
-        }
-        Err(e) => Err(e)
+        },
+        Err(e) => e.gen_response()
     }
 }

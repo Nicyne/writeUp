@@ -1,18 +1,16 @@
 //! Endpoints regarding the sharing of notes and connecting of users
 
 use std::env;
-use std::sync::Mutex;
 use actix_web::{get, put, post, delete, Responder, HttpRequest, HttpResponse, web};
 use actix_web::web::{Data, Path};
 use chrono::Utc;
 use jsonwebtoken::{Algorithm, decode, DecodingKey, encode, EncodingKey, Header, Validation};
 use mongodb::bson::doc;
 use serde::{Serialize, Deserialize};
-use mongodb::{bson, Database};
-use crate::db_access::{update_dbo_by_id, USER, User, filter_allowances_by_user_id, AllowanceLevel, get_dbo_by_id, is_safe};
-use crate::db_access::{AllowanceLevel::Forbidden, DBError::QueryError};
-use crate::SHARE_SECRET_ENV_VAR_KEY;
-use crate::web::{auth::get_user_from_request, note::get_allow_level_for_note, ResponseObject, ResponseObjectWithPayload};
+use crate::{AppData, SHARE_SECRET_ENV_VAR_KEY};
+use crate::storage::error::DBError;
+use crate::web::{ResponseObject, ResponseObjectWithPayload};
+use crate::web::auth::get_user_from_request;
 use crate::web::error::APIError;
 use crate::web::share::json_objects::{InviteBody, RelationResponse, ShareRequest};
 
@@ -33,7 +31,7 @@ struct Claims {
 /// Structs modelling the request- and response-bodies
 mod json_objects {
     use serde::{Serialize, Deserialize};
-    use crate::db_access::AllowanceLevel;
+    use crate::storage::interface::PermissionLevel;
 
     /// Body of both request and response containing an invite-code
     #[derive(Serialize, Deserialize)]
@@ -48,7 +46,7 @@ mod json_objects {
         /// User a note is to be shared with
         pub user_id: String,
         /// The level of access being given to the user
-        pub allowance: AllowanceLevel
+        pub allowance: PermissionLevel
     }
 
     /// Body of a response after a relation between two user has been established
@@ -98,10 +96,10 @@ mod json_objects {
 ///     }
 /// ```
 #[get("/share")]
-pub async fn get_relation_code(req: HttpRequest, db:Data<Mutex<Database>>) -> impl Responder {
-    match get_user_from_request(req, &db).await {
-        Ok(user) => {
-            match gen_invite(&user._id) {
+pub async fn get_relation_code(req: HttpRequest, db_pool: Data<AppData>) -> impl Responder {
+    match get_user_from_request(req, &db_pool.get_manager()).await {
+        Ok(user_manager) => {
+            match gen_invite(&user_manager.get_meta_information().id) {
                 Ok(code) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(InviteBody {code})),
                 Err(e) => e.gen_response()
             }
@@ -184,34 +182,17 @@ pub async fn get_relation_code(req: HttpRequest, db:Data<Mutex<Database>>) -> im
 ///     }
 /// ```
 #[post("/share")]
-pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, db: Data<Mutex<Database>>) -> impl Responder {
-    match get_user_from_request(req, &db).await {
-        Ok(user) => {
+pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, db_pool: Data<AppData>) -> impl Responder {
+    match get_user_from_request(req, &db_pool.get_manager()).await {
+        Ok(user_manager) => {
             match get_user_id_from_invite_code(&code_req.code) {
                 Ok(invite_user_id) => {
-                    if invite_user_id.eq(&user._id) {
-                        return APIError::InvalidInstructionsError("user can't connect with themselves".to_string()).gen_response()
+                    match user_manager.associate_with(&invite_user_id).await {
+                        Ok(_) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(RelationResponse { user_id: invite_user_id })),
+                        Err(DBError::InvalidRequestError(str)) => APIError::InvalidInstructionsError(str).gen_response(),
+                        Err(DBError::InvalidSequenceError(_)) => APIError::InvalidIDError.gen_response(),
+                        Err(_) => APIError::QueryError("relation could not be established".to_string()).gen_response()
                     }
-                    // Simple (non exhaustive) check for an already existing connection between users
-                    if user.connections.contains(&invite_user_id) {
-                        return APIError::InvalidInstructionsError("user already share a connection".to_string()).gen_response()
-                    }
-
-                    // Add each user to the others relation-list
-                    let update_curr_user =
-                        update_dbo_by_id::<User>(USER, user._id.clone(),
-                                                 doc! {"$push": {"connections": &invite_user_id}},
-                                                 &db);
-                    let update_invite_user =
-                        update_dbo_by_id::<User>(USER, invite_user_id.clone(),
-                                                 doc! {"$push": {"connections": user._id}},
-                                                 &db);
-
-                    // Wait for the queries to finish and check for an error
-                    if update_curr_user.await.is_err() || update_invite_user.await.is_err() {
-                        return APIError::QueryError("relation could not be established".to_string()).gen_response()
-                    }
-                    HttpResponse::Ok().json(ResponseObjectWithPayload::new(RelationResponse { user_id: invite_user_id}))
                 }
                 Err(e) => e.gen_response()
             }
@@ -280,59 +261,15 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
 ///     }
 /// ```
 #[delete("/share/{user_id}")]
-pub async fn remove_relation(path: Path<String>, req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
-    let related_user = path.into_inner();
-    // Check for potential injection-attempt
-    if !is_safe(&related_user) {
-        return APIError::InvalidIDError.gen_response()
-    }
-    match get_user_from_request(req, &db).await {
-        Ok(user) => {
-            if user._id.eq(&related_user) {
-                return APIError::InvalidInstructionsError("user can't remove connection to themselves".to_string()).gen_response()
+pub async fn remove_relation(path: Path<String>, req: HttpRequest, db_pool: Data<AppData>) -> impl Responder {
+    match get_user_from_request(req, &db_pool.get_manager()).await {
+        Ok(user_manager) => {
+            match user_manager.revoke_association(&path.into_inner()).await {
+                Ok(_) => HttpResponse::Ok().json(ResponseObject::new()),
+                Err(DBError::InvalidSequenceError(_)) => APIError::InvalidIDError.gen_response(),
+                Err(DBError::InvalidRequestError(str)) => APIError::InvalidInstructionsError(str).gen_response(),
+                Err(_) => APIError::QueryError("failed to remove relation".to_string()).gen_response()
             }
-            // Simple (non exhaustive) check for an already existing connection between users
-            if !user.connections.contains(&related_user) {
-                return APIError::InvalidInstructionsError("user don't share a connection".to_string()).gen_response()
-            }
-
-            // Compile all notes that have been shared between both user
-            let allow_curr_user =
-                filter_allowances_by_user_id(&user._id, &related_user, &db);
-            let allow_rel_user =
-                filter_allowances_by_user_id(&related_user, &user._id, &db);
-
-            // Remove all allowances to notes of the other host
-            let remove_allow_curr_user =
-                update_dbo_by_id::<User>(USER,user._id.clone(),
-                                         doc! {"$pull": {"allowances": {"note_id": {"$in": allow_curr_user.await.unwrap()}}}},
-                                         &db);
-            let remove_allow_rel_user =
-                update_dbo_by_id::<User>(USER, related_user.clone(),
-                                         doc! {"$pull": {"allowances": {"note_id": {"$in": allow_rel_user.await.unwrap()}}}},
-                                         &db);
-            // Remove the relation from each of the user
-            let remove_conn_curr_user =
-                update_dbo_by_id::<User>(USER, user._id.clone(),
-                                         doc! {"$pull": {"connections": &related_user}},
-                                         &db);
-            let remove_conn_rel_user =
-                update_dbo_by_id::<User>(USER, related_user.clone(),
-                                         doc! {"$pull": {"connections": user._id.clone()}},
-                                         &db);
-
-            // Sync all tasks and check for an error
-            let mut error = Vec::new();
-            for query in [remove_allow_curr_user, remove_allow_rel_user, remove_conn_curr_user, remove_conn_rel_user] {
-                let result = query.await;
-                if result.is_err() {
-                    error.push(result)
-                }
-            }
-            if !error.is_empty() {
-                return APIError::QueryError("relation or shares could not be fully removed".to_string()).gen_response()
-            }
-            HttpResponse::Ok().json(ResponseObject::new())
         }
         Err(e) => e.gen_response()
     }
@@ -440,65 +377,30 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, db: Data<Mute
 ///     }
 /// ```
 #[put("/share/{note_id}")]
-pub async fn update_allowances(path: Path<String>, req: HttpRequest, allow_req: web::Json<Vec<ShareRequest>>, db: Data<Mutex<Database>>) -> impl Responder {
-    let note_id = path.into_inner();
-    // Check for potential injection-attempt
-    if !is_safe(&note_id) {
-        return APIError::InvalidIDError.gen_response()
-    }
-    match get_allow_level_for_note(&note_id, req.clone(), &db).await {
-        Ok(AllowanceLevel::Owner) => { // Sharing of a note is only allowed to the owner of said note
-            let curr_user = get_user_from_request(req, &db).await.unwrap();
-            let mut errors = Vec::new();
-            // Iterate through all changes in allowances
-            for share in allow_req.into_inner() { //TODO Multithread (check for duplicates in user_id first)
-                if !curr_user.connections.contains(&share.user_id) { //TODO? Add to error-report
-                    continue // No allowances if the user is not connected to the owner
-                }
-                match get_dbo_by_id::<User>(USER, share.user_id, &db).await {
-                    Ok(user) => {
-                        match user.allowances.iter().find(|allow| allow.note_id.eq(&note_id)) {
-                            // The user already has an existing allowance for the note
-                            Some(_) => {
-                                if share.allowance.eq(&Forbidden) { // The allowance is to be revoked
-                                    if update_dbo_by_id::<User>(USER, user._id,
-                                                                doc! {"$pull": {"allowances": {"note_id": &note_id}}}, &db).await.is_err() {
-                                        errors.push(QueryError)
-                                    }
-                                } else { // The allowance is to be altered
-                                    let user_coll = db.lock().unwrap().collection::<User>(USER);
-                                    if user_coll.update_one(doc! {"_id": user._id, "allowances.note_id": &note_id},
-                                                            doc! {"$set": {"allowances.$.level": bson::to_bson(&share.allowance).unwrap()}},
-                                                            None).await.is_err() {
-                                        errors.push(QueryError)
-                                    }
-                                }
-                            }
-                            // The user has no current allowance with the note
-                            None => {
-                                if share.allowance.eq(&Forbidden) { //TODO? Add to error-report
-                                    continue // Can't revoke an allowance that doesn't exist
-                                }
-                                if update_dbo_by_id::<User>(USER, user._id,
-                                                            doc! {"$push": {"allowances":
-                                                                {"note_id": &note_id, "level": bson::to_bson(&share.allowance).unwrap()}}},
-                                                            &db).await.is_err() {
-                                    errors.push(QueryError)
-                                }
-                            }
+pub async fn update_allowances(path: Path<String>, req: HttpRequest, allow_req: web::Json<Vec<ShareRequest>>, db_pool: Data<AppData>) -> impl Responder {
+
+    match get_user_from_request(req, &db_pool.get_manager()).await {
+        Ok(user_manager) => {
+            match user_manager.get_note(&path.into_inner()).await {
+                Ok(note_manager) => {
+                    let mut failed_users = Vec::new();
+                    for share in allow_req.into_inner() {
+                        if note_manager.update_share(&share.user_id, share.allowance).await.is_err() {
+                            failed_users.push(share.user_id);
                         }
                     }
-                    Err(e) => errors.push(e) // Can't share with nonexisting user
-                }
+                    if !failed_users.is_empty() {
+                        return APIError::QueryError(format!("failed to update allowances of the following user(s): [{}]",
+                                                            failed_users.join(","))).gen_response()
+                    }
+                    HttpResponse::Ok().json(ResponseObject::new())
+                },
+                Err(DBError::InvalidSequenceError(_)) => APIError::InvalidIDError.gen_response(),
+                Err(DBError::MissingEntryError(_,_)) => APIError::InvalidIDError.gen_response(),
+                Err(_) => APIError::QueryError("failed to access note".to_string()).gen_response()
             }
-            // Check for a failed query
-            if !errors.is_empty() { //TODO Create an error report and return it
-                return APIError::QueryError("not all allowances were updated".to_string()).gen_response()
-            }
-            HttpResponse::Ok().json(ResponseObject::new())
-        }
-        Ok(_) =>  APIError::NoPermissionError.gen_response(), // Not owner of the note
-        Err(e) => e.gen_response() // unknown
+        },
+        Err(e) => e.gen_response()
     }
 }
 

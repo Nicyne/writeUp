@@ -39,12 +39,13 @@ mod error;
 mod auth;
 
 use std::env;
-use std::sync::Mutex;
 use serde::Serialize;
 use actix_web::{get, HttpRequest, HttpResponse, Responder, web::{ServiceConfig, Data}};
 use actix_web::error::JsonPayloadError;
-use mongodb::{bson::doc, Database};
-use crate::db_access::{AllowanceLevel, DBError, get_dbo_by_id, Note, NOTES};
+use mongodb::bson::doc;
+use crate::AppData;
+use crate::storage::error::DBError;
+use crate::storage::interface::PermissionLevel;
 use crate::web::auth::get_user_from_request;
 use crate::web::error::APIError;
 
@@ -263,7 +264,7 @@ async fn return_system_status() -> impl Responder {
 ///     }
 /// ```
 #[get("/notes")]
-async fn list_notes(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
+async fn list_notes(req: HttpRequest, db_pool: Data<AppData>) -> impl Responder {
     // Define Response-Object
     /// Response-body containing a limited amount of information on a note
     #[derive(Serialize)]
@@ -275,23 +276,24 @@ async fn list_notes(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Respond
         /// The tags associated with the note
         tags: Vec<String>,
         /// The level of access the current user has regarding this note
-        allowance: AllowanceLevel
+        allowance: PermissionLevel
     }
 
-    match get_user_from_request(req, db.get_ref()).await {
-        Ok(user) => {
+    let db = db_pool.get_manager();
+    match get_user_from_request(req, &db).await {
+        Ok(user_manager) => {
             let mut response_vector = Vec::new();
-            for allowance in user.allowances {
+            for note_id in user_manager.get_all_notes().await.unwrap() {
                 // Read all allowed notes and create response-objects
-                match get_dbo_by_id::<Note>(NOTES, allowance.note_id.clone(), db.get_ref()).await {
-                    Ok(note) => response_vector.push(ReducedNoteResponse {
-                        note_id: allowance.note_id,
-                        title: note.title,
-                        tags: note.tags,
-                        allowance: allowance.level
+                match user_manager.get_note(&note_id).await {
+                    Ok(note_manager) => response_vector.push(ReducedNoteResponse {
+                        note_id: note_manager.get_meta_information().id.clone(),
+                        title: note_manager.get_title().await.unwrap(),
+                        tags: note_manager.get_tags().await.unwrap(),
+                        allowance: note_manager.get_meta_information().permission
                     }),
-                    Err(DBError::NoDocumentFoundError) => return APIError::DBInconsistencyError(
-                                user._id, allowance.note_id).gen_response(), //user has allowance for a nonexisting note
+                    Err(DBError::MissingEntryError(_, missing_note_id)) => return APIError::DBInconsistencyError(
+                        user_manager.get_meta_information().id.clone(), missing_note_id).gen_response(), //user has allowance for a nonexisting note
                     Err(_) => {} //unknown
                 }
             }

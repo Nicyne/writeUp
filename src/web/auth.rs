@@ -1,18 +1,17 @@
 //! Contains functions and endpoints revolving around authorisation and authentication
 
 use std::env;
-use std::sync::Mutex;
 use actix_web::{post, get, delete, HttpResponse, Responder, web, HttpRequest};
 use actix_web::cookie::{CookieBuilder, SameSite, time::Duration};
 use actix_web::web::Data;
 use chrono::Utc;
 use jsonwebtoken::{Algorithm, decode, DecodingKey, encode, EncodingKey, Header, Validation};
 use mongodb::bson::doc;
-use mongodb::Database;
-use crate::db_access::{Credential, CREDENTIALS, DBError, get_dbo_by_id, User, USER};
 use crate::web::{error::APIError, ResponseObject, ResponseObjectWithPayload};
 use serde::{Serialize, Deserialize};
-use crate::{has_dev_flag, JWT_SECRET_ENV_VAR_KEY};
+use crate::{AppData, has_dev_flag, JWT_SECRET_ENV_VAR_KEY};
+use crate::storage::error::DBError;
+use crate::storage::interface::{DBManager, UserManager};
 
 // JWT-Assets
 /// Time in minutes until a JWT expires
@@ -91,35 +90,33 @@ mod json_objects {
 ///     }
 /// ```
 #[post("/auth")]
-pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objects::TokenRequest>) -> impl Responder {
-    // Load Credentials for the supposed user
-    match get_dbo_by_id::<Credential>(CREDENTIALS, creds.username.as_str().to_string(), db.get_ref()).await {
-        Ok(cred) => {
-            // Verify their password
-            if cred.verify(creds.password.as_str()) {
-                // Generate a JWT
-                match gen_jwt(creds.username.as_str()) {
-                    Ok(jwt) => {
-                        // Create a cookie with the JWT
-                        let token_cookie_builder = CookieBuilder::new(JWT_TOKEN_COOKIE_NAME, jwt)
-                            .same_site(SameSite::Strict)
-                            .http_only(true)
-                            .secure(!has_dev_flag());
-                        let token_cookie = if !creds.session_only {
-                                token_cookie_builder.max_age(Duration::minutes(JWT_DURATION_MINUTES)).finish()
-                            } else {
-                                token_cookie_builder.finish()
-                            };
-                        let mut response = HttpResponse::Ok().json(ResponseObject::new());
-                        if response.add_cookie(&token_cookie).is_err() {
-                            return APIError::InternalServerError("failed to set authentication-cookie".to_string()).gen_response()} //Cookie couldn't be parsed
-                        response
-                    }
-                    Err(e) => e.gen_response()
+pub async fn authenticate(db_pool: Data<AppData>, creds: web::Json<json_objects::TokenRequest>) -> impl Responder {
+    let db = db_pool.get_manager();
+    // Verify their password
+    match db.auth_user(&creds.username, &creds.password).await {
+        Ok(_user_manager) => {
+            // Generate a JWT
+            match gen_jwt(creds.username.as_str()) {
+                Ok(jwt) => {
+                    // Create a cookie with the JWT
+                    let token_cookie_builder = CookieBuilder::new(JWT_TOKEN_COOKIE_NAME, jwt)
+                        .same_site(SameSite::Strict)
+                        .http_only(true)
+                        .secure(!has_dev_flag());
+                    let token_cookie = if !creds.session_only {
+                        token_cookie_builder.max_age(Duration::minutes(JWT_DURATION_MINUTES)).finish()
+                    } else {
+                        token_cookie_builder.finish()
+                    };
+                    let mut response = HttpResponse::Ok().json(ResponseObject::new());
+                    if response.add_cookie(&token_cookie).is_err() {
+                        return APIError::InternalServerError("failed to set authentication-cookie".to_string()).gen_response()} //Cookie couldn't be parsed
+                    response
                 }
-            } else { APIError::InvalidCredentialsError("wrong credentials".to_string()).gen_response() } //wrong password
-        }
-        Err(DBError::NoDocumentFoundError) => APIError::InvalidCredentialsError("wrong credentials".to_string()).gen_response(), //No user with that username has been found
+                Err(e) => e.gen_response()
+            }
+        },
+        Err(DBError::IncorrectCredentialsError) => APIError::InvalidCredentialsError("wrong credentials".to_string()).gen_response(), //could not verify a user with these credentials
         Err(_) => APIError::QueryError("can not access credentials".to_string()).gen_response() //Unknown
     }
 }
@@ -160,10 +157,10 @@ pub async fn authenticate(db: Data<Mutex<Database>>, creds: web::Json<json_objec
 ///     }
 /// ```
 #[get("/auth")]
-pub async fn get_auth_status(req: HttpRequest, db: Data<Mutex<Database>>) -> impl Responder {
-    match get_user_from_request(req, &db).await {
-        Ok(user) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(
-            doc! {"username": user._id})),
+pub async fn get_auth_status(req: HttpRequest, db_pool: Data<AppData>) -> impl Responder {
+    match get_user_from_request(req, &db_pool.get_manager()).await {
+        Ok(user_manager) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(
+            doc! { "username": user_manager.get_meta_information().id.clone() })),
         Err(APIError::AuthenticationError) => {
             let mut response = ResponseObject::new();
             response.success = false;
@@ -266,14 +263,15 @@ pub fn get_user_id_from_request(req: HttpRequest) -> Result<String, APIError> { 
 ///
 /// * `req` - HttpRequest from which the cookie and therefore the JWT gets extracted
 /// * `db` - Reference to a Mutex-secured Database-connection
-pub async fn get_user_from_request(req: HttpRequest, db: &Mutex<Database>) -> Result<User,APIError> {
+pub async fn get_user_from_request(req: HttpRequest, db: &Box<dyn DBManager>) -> Result<Box<dyn UserManager>,APIError> {
     // Verify jwt
     match get_user_id_from_request(req) {
         Ok(user_id) => {
             // Extract the user
-            match get_dbo_by_id::<User>(USER, user_id, db).await {
+            match db.get_user(&user_id).await {
                 Ok(user) => Ok(user),
-                Err(DBError::NoDocumentFoundError) => Err(APIError::AuthenticationError),
+                Err(DBError::MissingEntryError(_,_)) => Err(APIError::AuthenticationError),
+                Err(DBError::InvalidSequenceError(_)) => Err(APIError::InvalidIDError),
                 Err(_) => Err(APIError::QueryError("user could not be retrieved from database".to_string()))
             }
         }

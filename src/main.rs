@@ -38,11 +38,9 @@
 #![allow(non_snake_case)]
 mod storage;
 mod web;
-mod db_access;
 
 use std::env;
 use std::path::{MAIN_SEPARATOR, Path};
-use std::sync::Mutex;
 use clap::Parser;
 use actix_cors::Cors;
 use actix_files::NamedFile;
@@ -54,7 +52,8 @@ use log::{debug, error, info};
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use simple_on_shutdown::on_shutdown;
-use crate::db_access::connect_to_database;
+use crate::storage::Driver;
+use crate::storage::interface::{DBManager, ManagerPool};
 
 /// The name of the environment-variable containing the password-secret
 pub const PASSWD_SECRET_ENV_VAR_KEY: &str = "PASSWD_SECRET";
@@ -94,6 +93,16 @@ struct Args {
     /// Specify an address to forward the 'Privacy-Policy'-section of the frontend to
     #[clap(long = "privacy-policy", value_parser)]
     privacy_policy_url: Option<String>,
+}
+
+pub struct AppData {
+    db_pool: Box<dyn ManagerPool>
+}
+
+impl AppData {
+    pub fn get_manager(&self) -> Box<dyn DBManager> {
+        self.db_pool.get_manager()
+    }
 }
 
 #[actix_rt::main]
@@ -147,13 +156,13 @@ async fn main() -> std::io::Result<()> {
     info!("Connecting to Database");
     debug!("Database-Address: {}:{}", db_uri, db_port);
     debug!("Database-User: {} ({})", db_user, db_passwd);
-    let db = connect_to_database((db_uri, db_port), (db_user, db_passwd)).await;
-    if db.is_err() {
+    let db_pool = Driver::MongoDB.get_pool((db_uri, db_port), (db_user, db_passwd)).await;
+    if db_pool.is_err() {
         error!("Failed to establish a connection to the Database. Shutting down");
         return Ok(());
     }
     // Prepare the connection for use by the web-server
-    let data = Data::new(Mutex::new(db.unwrap()));
+    let data = Data::new(AppData { db_pool: db_pool.unwrap() });
 
     // Start the web-server
     info!("Starting up webserver on port {}", api_port);
