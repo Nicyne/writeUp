@@ -11,7 +11,7 @@ pub const VERSION: &str = "1.0";
 
 // Database-Identifier
 /// Identifier of the database inside of a mongodb-server
-pub(in crate::storage) const DB_NAME: &str = "test";
+pub(in crate::storage) const DB_NAME: &str = "writeup";
 // Collection-Identifier
 /// Identifier of the collection containing all meta-information
 pub const META: &str = "meta";
