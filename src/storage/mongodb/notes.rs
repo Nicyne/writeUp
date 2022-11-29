@@ -63,7 +63,9 @@ impl NoteManager for MongoDBNoteManager {
 
         let query = doc! { "$set": { "title": &title, "last_edited": &stamp } };
         let query_response = note_collection.update_one(filter, query, None).await;
-        return if query_response.is_err() { Err(DBError::QueryError) } else {
+        return if query_response.is_err() {
+            Err(DBError::QueryError(format!("set title of note with ID='{}' to '{}'", self.get_meta_information().id, title)))
+        } else {
             // Update meta-struct
             self.meta.last_edited = stamp;
             // Update cache
@@ -86,7 +88,9 @@ impl NoteManager for MongoDBNoteManager {
 
         let query = doc! { "$set": { "content": &content, "last_edited": &stamp } };
         let query_response = note_collection.update_one(filter, query, None).await;
-        return if query_response.is_err() { Err(DBError::QueryError) } else {
+        return if query_response.is_err() {
+            Err(DBError::QueryError(format!("set content of note with ID='{}'", self.get_meta_information().id)))
+        } else {
             // Update meta-struct
             self.meta.last_edited = stamp;
             // Update cache
@@ -109,7 +113,9 @@ impl NoteManager for MongoDBNoteManager {
 
         let query = doc! { "$set": { "tags": &tags, "last_edited": &stamp } };
         let query_response = note_collection.update_one(filter, query, None).await;
-        return if query_response.is_err() { Err(DBError::QueryError) } else {
+        return if query_response.is_err() {
+            Err(DBError::QueryError(format!("set tags of note with ID='{}'", self.get_meta_information().id)))
+        } else {
             // Update meta-struct
             self.meta.last_edited = stamp;
             // Update cache
@@ -157,6 +163,8 @@ impl NoteManager for MongoDBNoteManager {
         };
         let query_response = user_collection.update_one(filter, query, None).await;
 
-        return if query_response.is_ok() { Ok(()) } else { Err(DBError::QueryError) }
+        return if query_response.is_ok() { Ok(()) } else {
+            Err(DBError::QueryError(format!("add/update user's(ID='{}') share of note(ID='{}')", user_id, self.get_meta_information().id)))
+        }
     }
 }

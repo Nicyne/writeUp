@@ -56,7 +56,9 @@ pub struct NoteMeta {
 
 // Manager
 
-pub trait ManagerPool {
+/// A pool allowing retrieval of fresh [`DBManager`]-instances
+pub trait ManagerPool: Send + Sync {
+    /// Retrieves a new [`DBManager`]-instance
     fn get_manager(&self) -> Box<dyn DBManager>;
 }
 
@@ -69,7 +71,7 @@ pub trait DBManager {
     /// Attempts to verify a users credentials
     ///
     /// Returns the corresponding [`UserManager`] if successful
-    /// and `IncorrectCredentialsError` if not
+    /// and [`IncorrectCredentialsError`](DBError::IncorrectCredentialsError) if not
     ///
     /// # Arguments
     ///
@@ -174,7 +176,7 @@ pub trait NoteManager: Send + Sync {
     /// * `perm` - The new [`PermissionLevel`]
     async fn update_share(&self, user_id: &str, perm: PermissionLevel) -> Result<(), DBError>;
 
-    /// Compares the prevailing [PermissionLevel] to the one required.
+    /// Compares the prevailing [`PermissionLevel`] to the one required.
     ///
     /// Returns [`NoPermissionError`] if permissions are insufficient
     ///

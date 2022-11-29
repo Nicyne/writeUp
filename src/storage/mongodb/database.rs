@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use mongodb::bson::doc;
 use mongodb::Database;
-use crate::storage::{Driver, gen_hash, verify};
+use crate::storage::{Driver, gen_hash, is_safe, verify};
 use crate::storage::error::DBError;
 use crate::storage::interface::{DBManager, DBMeta, UserManager};
 use crate::storage::mongodb::schema;
@@ -33,12 +33,15 @@ impl DBManager for MongoDBDatabaseManager {
 
 
     async fn auth_user(&self, username: &str, password: &str) -> Result<Box<dyn UserManager>, DBError> {
+        // Check for injection-attempt in the username
+        if !is_safe(username) { return Err(DBError::InvalidSequenceError(username.to_string())) }
+
         // Get Credentials for user
         let cred_collection = self.database.collection::<Credential>(CREDENTIALS);
         let filter = doc! { "_id": username };
 
         let query_result = cred_collection.find_one(filter, None).await;
-        if query_result.is_err() { return Err(DBError::QueryError) }
+        if query_result.is_err() { return Err(DBError::QueryError(format!("lookup of credential with ID='{}'", username))) }
 
         let found_credential = query_result.unwrap();
         return match found_credential {
@@ -87,14 +90,14 @@ impl DBManager for MongoDBDatabaseManager {
         let user_query = user_collection.insert_one(user, None).await;
 
         if cred_query.is_err() || user_query.is_err() {
-            return Err(DBError::QueryError)
+            return Err(DBError::QueryError(format!("insert of credential/user with ID='{}'", username)))
         }
         if cred_query.unwrap().inserted_id != user_query.as_ref().unwrap().inserted_id {
-            return Err(DBError::QueryError)
+            return Err(DBError::QueryError("ids of credential- and user-document differ".to_string()))
         }
 
         // Return UserManager
-        return Ok(self.get_user(&user_query.unwrap().inserted_id.to_string()).await?)
+        return Ok(self.get_user(username).await?)
     }
 
     async fn get_user(&self, user_id: &str) -> Result<Box<dyn UserManager>, DBError> {
@@ -104,6 +107,7 @@ impl DBManager for MongoDBDatabaseManager {
     async fn remove_user(&self, user_id: &str) -> Result<(), DBError> {
         let user = self.get_user(user_id).await?;
 
+        // Remove all notes and shares
         let accessible_notes = user.get_all_notes();
         for note_id in accessible_notes.await? {
             let note_query = user.remove_note(&note_id);
@@ -113,11 +117,13 @@ impl DBManager for MongoDBDatabaseManager {
             }
         }
 
+        // Remove all associations
         let associates = user.get_associates();
         for associate in associates.await? {
             user.revoke_association(&associate).await?;
         }
 
+        // Remove user- and credential-docs
         let cred_collection = self.database.collection::<Credential>(CREDENTIALS);
         let user_collection = self.database.collection::<User>(USER);
         let filter = doc! {"_id": user_id};
@@ -125,7 +131,10 @@ impl DBManager for MongoDBDatabaseManager {
         let cred_query = cred_collection.delete_one(filter.clone(), None);
         let user_query = user_collection.delete_one(filter, None);
 
-        return if cred_query.await.is_ok() && user_query.await.is_ok() { Ok(()) } else { Err(DBError::QueryError) }
+        // Return success
+        return if cred_query.await.is_ok() && user_query.await.is_ok() { Ok(()) } else {
+            Err(DBError::QueryError(format!("removal of user and credential with ID='{}'", user_id)))
+        }
 
     }
 }

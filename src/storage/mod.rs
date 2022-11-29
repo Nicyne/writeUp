@@ -7,12 +7,12 @@ use crate::storage::error::DBError;
 use crate::storage::interface::ManagerPool;
 use crate::storage::mongodb::MongoDBPool;
 
-mod interface;
-mod error;
+pub mod interface;
+pub mod error;
 mod mongodb;
 
 /// Chars not serving a use outside of a potential injection-attempt
-const FORBIDDEN_CHARS:[char;4] = ['{', '}', '$', ':']; //TODO? Check for '.' (only used in jwt so far)
+const FORBIDDEN_CHARS:[char;6] = ['{', '}', '$', ':', '-', '%']; //TODO? Check for '.' (only used in jwt so far)
 
 /// All supported database-driver
 pub enum Driver {

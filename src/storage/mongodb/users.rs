@@ -6,6 +6,7 @@ use mongodb::bson::oid::ObjectId;
 use mongodb::Database;
 use crate::storage::error::DBError;
 use crate::storage::interface::{NoteManager, PermissionLevel, UserManager, UserMeta};
+use crate::storage::is_safe;
 use crate::storage::mongodb::get_user;
 use crate::storage::mongodb::notes::MongoDBNoteManager;
 use crate::storage::mongodb::schema::{Note, NOTES, User, USER};
@@ -38,12 +39,13 @@ impl UserManager for MongoDBUserManager {
 
     async fn associate_with(&self, user_id: &str) -> Result<(), DBError> {
         // Sanity-checks
+        if !is_safe(user_id) { return Err(DBError::InvalidSequenceError(user_id.to_string())) }
         if self.meta.id.eq(&user_id) {
-            return Err(DBError::InvalidRequestError("user can not associate with themselves".to_string()))
+            return Err(DBError::InvalidRequestError("users can not be associated with themselves".to_string()))
         }
         let user = get_user(&user_id, &self.database).await?;
         if user.connections.contains(&self.meta.id) {
-            return Err(DBError::InvalidRequestError(format!("'{}' and '{}' already associate with each other", self.meta.id, user_id)))
+            return Err(DBError::InvalidRequestError(format!("'{}' and '{}' already share an association with each other", self.meta.id, user_id)))
         }
 
         // Add user to each others connection-field
@@ -56,7 +58,9 @@ impl UserManager for MongoDBUserManager {
                                                    doc! {"$push": {"connections": &user._id}},
                                                    None).await;
 
-        return if query_one.is_ok() && query_two.is_ok() {Ok(())} else { Err(DBError::QueryError) }
+        return if query_one.is_ok() && query_two.is_ok() {Ok(())} else {
+            Err(DBError::QueryError(format!("adding of each others user_id to own entry ('{}' <-> '{}')", &self.meta.id, &user._id)))
+        }
     }
 
     async fn get_associates(&self) -> Result<Vec<String>, DBError> {
@@ -64,6 +68,7 @@ impl UserManager for MongoDBUserManager {
     }
 
     async fn revoke_association(&self, user_id: &str) -> Result<(), DBError> {
+        if !is_safe(user_id) { return Err(DBError::InvalidSequenceError(user_id.to_string())) }
         // Check for existing association
         if !self.get_associates().await?.contains(&user_id.to_string()) {
             return Err(DBError::InvalidRequestError(format!("'{}' and '{}' are not associated with each other", self.meta.id, user_id)))
@@ -89,7 +94,7 @@ impl UserManager for MongoDBUserManager {
         let query_rm_allow_user_two = user_collection.update_one(doc! {"_id": &user_two._id},
                                                                  doc! {"$pull": {"allowances": {"note_id": {"$in": user_two_shares}}}},
                                                                  None).await;
-        if query_rm_allow_user_one.is_err() || query_rm_allow_user_two.is_err() { return Err(DBError::QueryError) }
+        if query_rm_allow_user_one.is_err() || query_rm_allow_user_two.is_err() { return Err(DBError::QueryError("revoke allowances for shared notes".to_string())) }
 
         // Remove association
         let query_rm_assoc_user_one = user_collection.update_one(doc! {"_id": &user_one._id},
@@ -99,7 +104,9 @@ impl UserManager for MongoDBUserManager {
                                                                  doc! {"$pull": {"connections": &user_one._id}},
                                                                  None).await;
 
-        return if query_rm_assoc_user_one.is_ok() && query_rm_assoc_user_two.is_ok() { Ok(()) } else { Err(DBError::QueryError) }
+        return if query_rm_assoc_user_one.is_ok() && query_rm_assoc_user_two.is_ok() { Ok(()) } else {
+            Err(DBError::QueryError(format!("cancel association-status between '{}' and '{}'", user_one._id, user_two._id)))
+        }
     }
 
 
@@ -123,12 +130,14 @@ impl UserManager for MongoDBUserManager {
 
         let note_query = note_collection.insert_one(new_note, None).await;
         let filter = doc! { "_id": &self.meta.id };
-        let note_id = note_query.map_err(|_| DBError::QueryError)?.inserted_id.as_object_id().unwrap().to_string();
+        let note_id = note_query.map_err(|_| DBError::QueryError("insert of new note".to_string()))?.inserted_id.as_object_id().unwrap().to_string();
 
         let user_query = user_collection.update_one(filter,
-                                                    doc! {"$push": {"allowances": {"note_id": &note_id, "level": "Moderate"}}},
+                                                    doc! {"$push": {"allowances": {"note_id": &note_id, "level": "Moderate", "owner_id": &self.meta.id}}}, //TODO Serialize permission from enum
                                                     None).await;
-        return if user_query.is_ok() { Ok(self.get_note(&note_id).await?) } else { Err(DBError::QueryError) }
+        return if user_query.is_ok() { Ok(self.get_note(&note_id).await?) } else {
+            Err(DBError::QueryError(format!("register new note with owner '{}'", self.get_meta_information().id)))
+        }
     }
 
     async fn get_note(&self, note_id: &str) -> Result<Box<dyn NoteManager>, DBError> {
@@ -153,7 +162,7 @@ impl UserManager for MongoDBUserManager {
         let user_query = user_collection.update_many(doc! {},
                                                      doc! {"$pull": {"allowances": {"note_id": &note_id}}},
                                                      None).await;
-        if user_query.is_err() { return Err(DBError::QueryError) }
+        if user_query.is_err() { return Err(DBError::QueryError(format!("remove references to note with ID='{}'", note_id))) }
 
         // Remove Note
         let note_collection = self.database.collection::<Note>(NOTES);
@@ -161,7 +170,7 @@ impl UserManager for MongoDBUserManager {
 
         return match note_collection.delete_one(filter, None).await {
             Ok(_) => Ok(()),
-            Err(_) => Err(DBError::QueryError)
+            Err(_) => Err(DBError::QueryError(format!("removal of note with ID='{}'", note_id)))
         }
     }
 }
