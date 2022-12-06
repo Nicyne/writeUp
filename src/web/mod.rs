@@ -40,13 +40,12 @@ mod auth;
 
 use std::env;
 use serde::Serialize;
-use actix_web::{get, HttpRequest, HttpResponse, Responder, web::{ServiceConfig, Data}};
+use actix_web::{get, HttpRequest, HttpResponse, Responder, ResponseError, web::{ServiceConfig, Data}};
 use actix_web::error::JsonPayloadError;
 use mongodb::bson::doc;
 use crate::AppData;
 use crate::storage::error::DBError;
-use crate::storage::interface::PermissionLevel;
-use crate::web::auth::get_user_from_request;
+use crate::storage::interface::{PermissionLevel, UserManager};
 use crate::web::error::APIError;
 
 /// The format used to display time in
@@ -93,7 +92,9 @@ impl <T> ResponseObjectWithPayload<T> {
 
 /// Converts web-server internal json-conversion-error to one conforming to the rest of the responses
 pub fn json_error_handler(err:JsonPayloadError, _req: &HttpRequest) -> actix_web::error::Error {
-    actix_web::error::InternalError::from_response(err, APIError::InvalidPayloadError.gen_response()).into()
+    actix_web::error::InternalError::from_response(err,
+                                                   APIError::InvalidPayloadError.error_response())
+        .into()
 }
 
 /// Configures the web-server to add all endpoints
@@ -198,13 +199,13 @@ async fn signal_health() -> impl Responder {
 ///     }
 /// ```
 #[get("/system")]
-async fn return_system_status(db_pool: Data<AppData>) -> impl Responder {
+async fn return_system_status(appdata: Data<AppData>) -> impl Responder {
     return HttpResponse::Ok().json(ResponseObjectWithPayload::new(doc! {
         "application": env!("CARGO_PKG_NAME").to_string(),
         "version": env!("CARGO_PKG_VERSION").to_string(),
         "db": {
             "type": "mongo", //TODO Read from env-var
-            "version": db_pool.get_manager().get_meta_information().version.clone()
+            "version": appdata.get_manager().get_meta_information().version.clone()
         },
         "pages": {
             "imprint": env::var("IMPRINT_URL").unwrap_or("".to_string()),
@@ -225,8 +226,7 @@ async fn return_system_status(db_pool: Data<AppData>) -> impl Responder {
 ///
 /// # Arguments
 ///
-/// * `req` - The HttpRequest that was made
-/// * `appdata` - An [`AppData`]-instance
+/// * `user_manager` - A [`UserManager`]-instance of the requesting user
 ///
 /// # Examples
 ///
@@ -268,7 +268,7 @@ async fn return_system_status(db_pool: Data<AppData>) -> impl Responder {
 ///     }
 /// ```
 #[get("/notes")]
-async fn list_notes(req: HttpRequest, appdata: Data<AppData>) -> impl Responder {
+async fn list_notes(user_manager: Box<dyn UserManager>) -> impl Responder {
     // Define Response-Object
     /// Response-body containing a limited amount of information on a note
     #[derive(Serialize)]
@@ -283,27 +283,28 @@ async fn list_notes(req: HttpRequest, appdata: Data<AppData>) -> impl Responder 
         allowance: PermissionLevel
     }
 
-    let db = appdata.get_manager();
-    match get_user_from_request(req, &db).await {
-        Ok(user_manager) => {
-            let mut response_vector = Vec::new();
-            for note_id in user_manager.get_all_notes().await.unwrap() {
-                // Read all allowed notes and create response-objects
-                match user_manager.get_note(&note_id).await {
-                    Ok(note_manager) => response_vector.push(ReducedNoteResponse {
+    let note_list = user_manager.get_all_notes().await.
+        map_err(|_| APIError::QueryError("failed to compile list of accessible notes".to_string()))?;
+    let mut response_vector = Vec::new();
+
+    for note_id in note_list {
+        // Read all allowed notes and create response-objects
+        match user_manager.get_note(&note_id).await {
+            Ok(note_manager) =>
+                response_vector.push(
+                    ReducedNoteResponse {
                         note_id: note_manager.get_meta_information().id.clone(),
                         title: note_manager.get_title().await.unwrap(),
                         tags: note_manager.get_tags().await.unwrap(),
                         allowance: note_manager.get_meta_information().permission
                     }),
-                    Err(DBError::MissingEntryError(_, missing_note_id)) => return APIError::DBInconsistencyError(
-                        user_manager.get_meta_information().id.clone(), missing_note_id).gen_response(), //user has allowance for a nonexisting note
-                    Err(_) => {} //unknown
-                }
-            }
-            // Return the compiled list of notes
-            HttpResponse::Ok().json(ResponseObjectWithPayload::new(response_vector))
+            Err(DBError::MissingEntryError(_, missing_note_id)) =>
+                return Err(APIError::DBInconsistencyError(user_manager.get_meta_information().id.clone(),
+                                                      missing_note_id)), //user has allowance for a nonexisting note
+            Err(_) => {} //unknown
         }
-        Err(e) => e.gen_response()
     }
+
+    // Return the compiled list of notes
+    Ok(HttpResponse::Ok().json(ResponseObjectWithPayload::new(response_vector)))
 }

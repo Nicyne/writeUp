@@ -1,16 +1,16 @@
 //! Endpoints regarding the sharing of notes and connecting of users
 
 use std::env;
-use actix_web::{get, put, post, delete, Responder, HttpRequest, HttpResponse, web};
-use actix_web::web::{Data, Path};
+use actix_web::{get, put, post, delete, Responder, HttpResponse, web};
+use actix_web::web::Path;
 use chrono::Utc;
 use jsonwebtoken::{Algorithm, decode, DecodingKey, encode, EncodingKey, Header, Validation};
 use mongodb::bson::doc;
 use serde::{Serialize, Deserialize};
-use crate::{AppData, SHARE_SECRET_ENV_VAR_KEY};
+use crate::SHARE_SECRET_ENV_VAR_KEY;
 use crate::storage::error::DBError;
+use crate::storage::interface::UserManager;
 use crate::web::{ResponseObject, ResponseObjectWithPayload};
-use crate::web::auth::get_user_from_request;
 use crate::web::error::APIError;
 use crate::web::share::json_objects::{InviteBody, RelationResponse, ShareRequest};
 
@@ -69,8 +69,7 @@ mod json_objects {
 ///
 /// # Arguments
 ///
-/// * `req` - The HttpRequest that was made
-/// * `appdata` - An [`AppData`]-instance
+/// * `user_manager` - A [`UserManager`]-instance of the requesting user
 ///
 /// # Examples
 ///
@@ -96,16 +95,14 @@ mod json_objects {
 ///     }
 /// ```
 #[get("/share")]
-pub async fn get_relation_code(req: HttpRequest, appdata: Data<AppData>) -> impl Responder {
-    match get_user_from_request(req, &appdata.get_manager()).await {
-        Ok(user_manager) => {
-            match gen_invite(&user_manager.get_meta_information().id) {
-                Ok(code) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(InviteBody {code})),
-                Err(e) => e.gen_response()
-            }
-        }
-        Err(e) => e.gen_response()
-    }
+pub async fn get_relation_code(user_manager: Box<dyn UserManager>) -> Result<impl Responder, APIError> {
+        Ok(HttpResponse::Ok().json(
+            ResponseObjectWithPayload::new(
+                InviteBody {
+                    code: gen_invite(&user_manager.get_meta_information().id)?
+                }
+            )
+        ))
 }
 
 /// ENDPOINT: Attempts to create a relation between two user with an invite-code
@@ -122,9 +119,8 @@ pub async fn get_relation_code(req: HttpRequest, appdata: Data<AppData>) -> impl
 ///
 /// # Arguments
 ///
-/// * `req` - The HttpRequest that was made
 /// * `code_req` - The body of the request parsed to an InviteBody-object
-/// * `appdata` - An [`AppData`]-instance
+/// * `user_manager` - A [`UserManager`]-instance of the requesting user
 ///
 /// # Examples
 ///
@@ -182,22 +178,20 @@ pub async fn get_relation_code(req: HttpRequest, appdata: Data<AppData>) -> impl
 ///     }
 /// ```
 #[post("/share")]
-pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, appdata: Data<AppData>) -> impl Responder {
-    match get_user_from_request(req, &appdata.get_manager()).await {
-        Ok(user_manager) => {
-            match get_user_id_from_invite_code(&code_req.code) {
-                Ok(invite_user_id) => {
-                    match user_manager.associate_with(&invite_user_id).await {
-                        Ok(_) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(RelationResponse { user_id: invite_user_id })),
-                        Err(DBError::InvalidRequestError(str)) => APIError::InvalidInstructionsError(str).gen_response(),
-                        Err(DBError::InvalidSequenceError(_)) => APIError::InvalidIDError.gen_response(),
-                        Err(_) => APIError::QueryError("relation could not be established".to_string()).gen_response()
-                    }
+pub async fn create_relation(code_req: web::Json<InviteBody>, user_manager: Box<dyn UserManager>) -> impl Responder {
+    let invite_user_id = get_user_id_from_invite_code(&code_req.code)?;
+
+    match user_manager.associate_with(&invite_user_id).await {
+        Ok(_) => Ok(HttpResponse::Ok().json(
+            ResponseObjectWithPayload::new(
+                RelationResponse {
+                    user_id: invite_user_id
                 }
-                Err(e) => e.gen_response()
-            }
-        }
-        Err(e) => e.gen_response()
+            )
+        )),
+        Err(DBError::InvalidRequestError(str)) => Err(APIError::InvalidInstructionsError(str)),
+        Err(DBError::InvalidSequenceError(_)) => Err(APIError::InvalidIDError),
+        Err(_) => Err(APIError::QueryError("relation could not be established".to_string()))
     }
 }
 
@@ -217,8 +211,7 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
 /// # Arguments
 ///
 /// * `path` - A Path-object containing the id of the related user
-/// * `req` - The HttpRequest that was made
-/// * `appdata` - An [`AppData`]-instance
+/// * `user_manager` - A [`UserManager`]-instance of the requesting user
 ///
 /// # Examples
 ///
@@ -261,17 +254,12 @@ pub async fn create_relation(req: HttpRequest, code_req: web::Json<InviteBody>, 
 ///     }
 /// ```
 #[delete("/share/{user_id}")]
-pub async fn remove_relation(path: Path<String>, req: HttpRequest, appdata: Data<AppData>) -> impl Responder {
-    match get_user_from_request(req, &appdata.get_manager()).await {
-        Ok(user_manager) => {
-            match user_manager.revoke_association(&path.into_inner()).await {
-                Ok(_) => HttpResponse::Ok().json(ResponseObject::new()),
-                Err(DBError::InvalidSequenceError(_)) => APIError::InvalidIDError.gen_response(),
-                Err(DBError::InvalidRequestError(str)) => APIError::InvalidInstructionsError(str).gen_response(),
-                Err(_) => APIError::QueryError("failed to remove relation".to_string()).gen_response()
-            }
-        }
-        Err(e) => e.gen_response()
+pub async fn remove_relation(path: Path<String>, user_manager: Box<dyn UserManager>) -> impl Responder {
+    match user_manager.revoke_association(&path.into_inner()).await {
+        Ok(_) => Ok(HttpResponse::Ok().json(ResponseObject::new())),
+        Err(DBError::InvalidSequenceError(_)) => Err(APIError::InvalidIDError),
+        Err(DBError::InvalidRequestError(msg)) => Err(APIError::InvalidInstructionsError(msg)),
+        Err(_) => Err(APIError::QueryError("failed to remove relation".to_string()))
     }
 }
 
@@ -292,9 +280,8 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, appdata: Data
 /// # Arguments
 ///
 /// * `path` - A Path-object containing the id of the to-be-shared note
-/// * `req` - The HttpRequest that was made
 /// * `allow_req` - The body of the request parsed to a Vector containing ShareRequest-objects
-/// * `appdata` - An [`AppData`]-instance
+/// * `user_manager` - A [`UserManager`]-instance of the requesting user
 ///
 /// # Examples
 ///
@@ -377,30 +364,24 @@ pub async fn remove_relation(path: Path<String>, req: HttpRequest, appdata: Data
 ///     }
 /// ```
 #[put("/share/{note_id}")]
-pub async fn update_allowances(path: Path<String>, req: HttpRequest, allow_req: web::Json<Vec<ShareRequest>>, appdata: Data<AppData>) -> impl Responder {
-
-    match get_user_from_request(req, &appdata.get_manager()).await {
-        Ok(user_manager) => {
-            match user_manager.get_note(&path.into_inner()).await {
-                Ok(note_manager) => {
-                    let mut failed_users = Vec::new();
-                    for share in allow_req.into_inner() {
-                        if note_manager.update_share(&share.user_id, share.allowance).await.is_err() {
-                            failed_users.push(share.user_id);
-                        }
-                    }
-                    if !failed_users.is_empty() {
-                        return APIError::QueryError(format!("failed to update allowances of the following user(s): [{}]",
-                                                            failed_users.join(","))).gen_response()
-                    }
-                    HttpResponse::Ok().json(ResponseObject::new())
-                },
-                Err(DBError::InvalidSequenceError(_)) => APIError::InvalidIDError.gen_response(),
-                Err(DBError::MissingEntryError(_,_)) => APIError::InvalidIDError.gen_response(),
-                Err(_) => APIError::QueryError("failed to access note".to_string()).gen_response()
+pub async fn update_allowances(path: Path<String>, allow_req: web::Json<Vec<ShareRequest>>, user_manager: Box<dyn UserManager>) -> impl Responder {
+    match user_manager.get_note(&path.into_inner()).await {
+        Ok(note_manager) => {
+            let mut failed_users = Vec::new();
+            for share in allow_req.into_inner() {
+                if note_manager.update_share(&share.user_id, share.allowance).await.is_err() {
+                    failed_users.push(share.user_id);
+                }
             }
+            if !failed_users.is_empty() {
+                return Err(APIError::QueryError(format!("failed to update allowances of the following user(s): [{}]",
+                                                    failed_users.join(","))))
+            }
+            Ok(HttpResponse::Ok().json(ResponseObject::new()))
         },
-        Err(e) => e.gen_response()
+        Err(DBError::InvalidSequenceError(_)) => Err(APIError::InvalidIDError),
+        Err(DBError::MissingEntryError(_,_)) => Err(APIError::InvalidIDError),
+        Err(_) => Err(APIError::QueryError("failed to access note".to_string()))
     }
 }
 

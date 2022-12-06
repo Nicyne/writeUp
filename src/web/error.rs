@@ -18,7 +18,9 @@
 //!     * **\[54\]** `QueryError` - Occurs whenever a query to the database fails
 //!     * **\[55\]** `DBInconsistencyError` - Occurs whenever an inconsistency within the database is discovered
 
-use actix_web::{HttpResponse, HttpResponseBuilder};
+use actix_web::{HttpResponse, ResponseError};
+use actix_web::body::BoxBody;
+use actix_web::http::StatusCode;
 use thiserror::Error;
 use serde::Serialize;
 use crate::web::TIME_FORMAT;
@@ -77,33 +79,41 @@ pub enum APIError {
 }
 
 impl APIError {
-    /// Maps itself to the appropriate HttpResponseBuilder and an internal error-code
-    fn get_response_information(&self) -> (HttpResponseBuilder, i8) {
+    /// Maps itself to the appropriate status- and internal error-code
+    fn map_to_error_code(&self) -> (StatusCode, i8) {
         match self {
             // auth-based error
-            APIError::AuthenticationError => (HttpResponse::Unauthorized(),10),
-            APIError::InvalidCredentialsError(_) => (HttpResponse::Ok(),11),
-            APIError::NoPermissionError => (HttpResponse::Forbidden(),12),
+            APIError::AuthenticationError => (StatusCode::UNAUTHORIZED,10),
+            APIError::InvalidCredentialsError(_) => (StatusCode::OK,11),
+            APIError::NoPermissionError => (StatusCode::FORBIDDEN,12),
             // formal error
-            APIError::InvalidPayloadError => (HttpResponse::BadRequest(),20),
-            APIError::InvalidIDError => (HttpResponse::BadRequest(),21),
-            APIError::InvalidInstructionsError(_) => (HttpResponse::Ok(),24),
-            APIError::InvalidInviteError => (HttpResponse::Ok(),27),
+            APIError::InvalidPayloadError => (StatusCode::BAD_REQUEST,20),
+            APIError::InvalidIDError => (StatusCode::BAD_REQUEST,21),
+            APIError::InvalidInstructionsError(_) => (StatusCode::OK,24),
+            APIError::InvalidInviteError => (StatusCode::OK,27),
             // internal error
-            APIError::InternalServerError(_) => (HttpResponse::InternalServerError(),50),
-            APIError::QueryError(_) => (HttpResponse::InternalServerError(), 54),
-            APIError::DBInconsistencyError(_,_) => (HttpResponse::InternalServerError(),55)
+            APIError::InternalServerError(_) => (StatusCode::INTERNAL_SERVER_ERROR,50),
+            APIError::QueryError(_) => (StatusCode::INTERNAL_SERVER_ERROR, 54),
+            APIError::DBInconsistencyError(_,_) => (StatusCode::INTERNAL_SERVER_ERROR,55)
         }
     }
+}
 
-    /// Creates a HttpResponse representing itself
-    pub fn gen_response(&self) -> HttpResponse {
-        let (mut response_builder, error_code) = self.get_response_information();
-        response_builder.json(ErrorResponse {
-            success: false,
-            code: error_code,
-            message: self.to_string(),
-            time: chrono::Local::now().format(TIME_FORMAT).to_string()
-        })
+impl ResponseError for APIError { //ignore error: linter is unable to recognise thiserror's-implementation of 'Display'
+    fn status_code(&self) -> StatusCode {
+        self.map_to_error_code().0
+    }
+
+    fn error_response(&self) -> HttpResponse<BoxBody> {
+        let (_, error_code) = self.map_to_error_code();
+        HttpResponse::build(self.status_code())
+            .json(
+                ErrorResponse {
+                    success: false,
+                    code: error_code,
+                    message: self.to_string(),
+                    time: chrono::Local::now().format(TIME_FORMAT).to_string()
+                }
+            )
     }
 }

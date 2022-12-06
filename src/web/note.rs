@@ -1,11 +1,10 @@
 //! Endpoints regarding note-objects and their manipulation
 
-use actix_web::{get, put, delete, post, Responder, HttpRequest, HttpResponse, web::{Data, Path}, web};
+use actix_web::{get, put, delete, post, Responder, HttpResponse, web::Path, web};
 use mongodb::bson::doc;
-use crate::AppData;
 use crate::storage::error::DBError;
+use crate::storage::interface::UserManager;
 use crate::web::error::APIError;
-use crate::web::auth::get_user_from_request;
 use crate::web::note::json_objects::{NoteRequest, NoteResponse};
 use crate::web::{ResponseObject, ResponseObjectWithPayload};
 
@@ -78,9 +77,8 @@ mod json_objects {
 ///
 /// # Arguments
 ///
-/// * `req` - The HttpRequest that was made
 /// * `note_req` - The body of the request parsed to a NoteRequest-object
-/// * `appdata` - An [`AppData`]-instance
+/// * `user_manager` - A [`UserManager`]-instance of the requesting user
 ///
 /// # Examples
 ///
@@ -126,24 +124,24 @@ mod json_objects {
 ///     }
 /// ```
 #[post("/note")]
-pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, appdata: Data<AppData>) -> impl Responder {
+pub async fn add_note(note_req: web::Json<NoteRequest>, user_manager: Box<dyn UserManager>) -> impl Responder {
     let note_req = note_req.into_inner();
-    // Grab the user to add a note to
-    match get_user_from_request(req, &appdata.get_manager()).await {
-        Ok(user_manager) => {
-            // Add the new note to the db
-            match user_manager.add_note(&note_req.title).await {
-                Ok(mut note_manager) => {
-                    if !note_req.content.is_empty() && note_manager.set_content(note_req.content).await.is_err() {
-                        return APIError::QueryError("failed to set content of note".to_string()).gen_response() }
-                    if !note_req.tags.is_empty() && note_manager.set_tags(note_req.tags).await.is_err() {
-                        return APIError::QueryError("failed to set tags of note".to_string()).gen_response() }
-                    HttpResponse::Created().json(ResponseObjectWithPayload::new(NoteResponse::from(&note_manager).await))
-                },
-                Err(_) => APIError::QueryError("note could not be saved to db".to_string()).gen_response() //unknown //TODO Catch various errors
-            }
-        }
-        Err(e) => e.gen_response()
+    // Add the new note to the db
+    match user_manager.add_note(&note_req.title).await {
+        Ok(mut note_manager) => {
+            // Add content if specified
+            if !note_req.content.is_empty() && note_manager.set_content(note_req.content).await.is_err() {
+                return Err(APIError::QueryError("failed to set content of note".to_string())) }
+            // Add tags if specified
+            if !note_req.tags.is_empty() && note_manager.set_tags(note_req.tags).await.is_err() {
+                return Err(APIError::QueryError("failed to set tags of note".to_string())) }
+            Ok(HttpResponse::Created().json(
+                ResponseObjectWithPayload::new(
+                    NoteResponse::from(&note_manager).await
+                )
+            ))
+        },
+        Err(_) => Err(APIError::QueryError("note could not be saved to db".to_string())) //unknown //TODO Catch various errors
     }
 }
 
@@ -164,8 +162,7 @@ pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, appdat
 /// # Arguments
 ///
 /// * `path` - A Path-object containing the id of the to-be-returned note
-/// * `req` - The HttpRequest that was made
-/// * `appdata` - An [`AppData`]-instance
+/// * `user_manager` - A [`UserManager`]-instance of the requesting user
 ///
 /// # Examples
 ///
@@ -221,22 +218,19 @@ pub async fn add_note(req: HttpRequest, note_req: web::Json<NoteRequest>, appdat
 ///     }
 /// ```
 #[get("/note/{note_id}")]
-pub async fn get_note(path: Path<String>, req: HttpRequest, appdata: Data<AppData>) -> impl Responder {
+pub async fn get_note(path: Path<String>, user_manager: Box<dyn UserManager>) -> impl Responder {
     let note_id = path.into_inner();
 
-    // Get the user
-    match get_user_from_request(req, &appdata.get_manager()).await {
-        Ok(user_manager) => {
-            // Attempt to get the note
-            match user_manager.get_note(&note_id).await {
-                Ok(note_manager) => HttpResponse::Ok().json(
-                    ResponseObjectWithPayload::new(NoteResponse::from(&note_manager).await)),
-                Err(DBError::NoPermissionError) => APIError::NoPermissionError.gen_response(),
-                Err(DBError::InvalidSequenceError(_)) => APIError::InvalidIDError.gen_response(),
-                Err(_) => APIError::QueryError("failed to retrieve note".to_string()).gen_response()
-            }
-        },
-        Err(e) => e.gen_response()
+    // Attempt to get the note
+    match user_manager.get_note(&note_id).await {
+        Ok(note_manager) => Ok(HttpResponse::Ok().json(
+            ResponseObjectWithPayload::new(
+                NoteResponse::from(&note_manager).await
+            )
+        )),
+        Err(DBError::NoPermissionError) => Err(APIError::NoPermissionError),
+        Err(DBError::InvalidSequenceError(_)) => Err(APIError::InvalidIDError),
+        Err(_) => Err(APIError::QueryError("failed to retrieve note".to_string()))
     }
 }
 
@@ -257,9 +251,8 @@ pub async fn get_note(path: Path<String>, req: HttpRequest, appdata: Data<AppDat
 /// # Arguments
 ///
 /// * `path` - A Path-object containing the id of the to-be-deleted note
-/// * `req` - The HttpRequest that was made
 /// * `note_req` - The body of the request parsed to a NoteRequest-object
-/// * `appdata` - An [`AppData`]-instance
+/// * `user_manager` - A [`UserManager`]-instance of the requesting user
 ///
 /// # Examples
 ///
@@ -336,37 +329,38 @@ pub async fn get_note(path: Path<String>, req: HttpRequest, appdata: Data<AppDat
 ///     }
 /// ```
 #[put("/note/{note_id}")]
-pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Json<NoteRequest>, appdata: Data<AppData>) -> impl Responder {
+pub async fn update_note(path: Path<String>, note_req: web::Json<NoteRequest>, user_manager: Box<dyn UserManager>) -> impl Responder {
     let note_req = note_req.into_inner();
     let note_id = path.into_inner();
 
-    // Get the user
-    match get_user_from_request(req, &appdata.get_manager()).await {
-        Ok(user_manager) => {
-            // Attempt to get the note
-            match user_manager.get_note(&note_id).await {
-                Ok(mut note_manager) => {
-                    let mut update_results = Vec::new();
-                    update_results.push(note_manager.set_title(note_req.title).await);
-                    update_results.push(note_manager.set_content(note_req.content).await);
-                    update_results.push(note_manager.set_tags(note_req.tags).await);
+    // Attempt to get the note
+    match user_manager.get_note(&note_id).await {
+        Ok(mut note_manager) => {
+            // Update the individual fields of the note
+            let mut update_results = Vec::new();
+            update_results.push(note_manager.set_title(note_req.title).await);
+            update_results.push(note_manager.set_content(note_req.content).await);
+            update_results.push(note_manager.set_tags(note_req.tags).await);
 
-                    for result in update_results {
-                        match result {
-                            Ok(_) => continue,
-                            Err(DBError::NoPermissionError) => return APIError::NoPermissionError.gen_response(),
-                            Err(_) => return APIError::QueryError("update of note failed".to_string()).gen_response()
-                        }
-                    }
-
-                    HttpResponse::Ok().json(ResponseObjectWithPayload::new(NoteResponse::from(&note_manager).await))
-                },
-                Err(DBError::NoPermissionError) => APIError::NoPermissionError.gen_response(),
-                Err(DBError::InvalidSequenceError(_)) => APIError::InvalidIDError.gen_response(),
-                Err(_) => APIError::QueryError("failed to retrieve note".to_string()).gen_response()
+            // Verify that all changes got through
+            for result in update_results {
+                match result {
+                    Ok(_) => continue,
+                    Err(DBError::NoPermissionError) => return Err(APIError::NoPermissionError),
+                    Err(_) => return Err(APIError::QueryError("update of note failed".to_string()))
+                }
             }
+
+            // Return success-response
+            Ok(HttpResponse::Ok().json(
+                ResponseObjectWithPayload::new(
+                    NoteResponse::from(&note_manager).await
+                )
+            ))
         },
-        Err(e) => e.gen_response()
+        Err(DBError::NoPermissionError) => Err(APIError::NoPermissionError),
+        Err(DBError::InvalidSequenceError(_)) => Err(APIError::InvalidIDError),
+        Err(_) => Err(APIError::QueryError("failed to retrieve note".to_string()))
     }
 }
 
@@ -387,8 +381,7 @@ pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Js
 /// # Arguments
 ///
 /// * `path` - A Path-object containing the id of the to-be-deleted note
-/// * `req` - The HttpRequest that was made
-/// * `appdata` - An [`AppData`]-instance
+/// * `user_manager` - A [`UserManager`]-instance of the requesting user
 ///
 /// # Examples
 ///
@@ -431,19 +424,14 @@ pub async fn update_note(path: Path<String>, req: HttpRequest, note_req: web::Js
 ///     }
 /// ```
 #[delete("/note/{note_id}")]
-pub async fn remove_note(path: Path<String>, req: HttpRequest, appdata: Data<AppData>) -> impl Responder {
+pub async fn remove_note(path: Path<String>, user_manager: Box<dyn UserManager>) -> impl Responder {
     let note_id = path.into_inner();
 
-    match get_user_from_request(req, &appdata.get_manager()).await {
-        Ok(user_manager) => {
-            match user_manager.remove_note(&note_id).await {
-                Ok(_) => HttpResponse::Ok().json(ResponseObject::new()),
-                Err(DBError::NoPermissionError) => APIError::NoPermissionError.gen_response(),
-                Err(DBError::InvalidSequenceError(_)) => APIError::InvalidIDError.gen_response(),
-                Err(DBError::MissingEntryError(_,_)) => APIError::NoPermissionError.gen_response(), // note doesnt exist
-                Err(_) => APIError::QueryError("failed to remove note".to_string()).gen_response()
-            }
-        },
-        Err(e) => e.gen_response()
+    match user_manager.remove_note(&note_id).await {
+        Ok(_) => Ok(HttpResponse::Ok().json(ResponseObject::new())),
+        Err(DBError::NoPermissionError) => Err(APIError::NoPermissionError),
+        Err(DBError::InvalidSequenceError(_)) => Err(APIError::InvalidIDError),
+        Err(DBError::MissingEntryError(_,_)) => Err(APIError::NoPermissionError), // note doesnt exist
+        Err(_) => Err(APIError::QueryError("failed to remove note".to_string()))
     }
 }

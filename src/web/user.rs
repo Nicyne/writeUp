@@ -1,14 +1,15 @@
 //! Endpoints regarding user-objects and their manipulation
 
 use std::env;
-use actix_web::{get, delete, post, Responder, HttpRequest, HttpResponse, web};
+use actix_identity::Identity;
+use actix_web::{get, delete, post, Responder, HttpResponse, web};
 use actix_web::web::Data;
 use mongodb::bson::doc;
 use crate::AppData;
 use crate::storage::error::DBError;
-use crate::web::auth::{gen_logout_response, get_user_from_request, get_user_id_from_request};
+use crate::storage::interface::UserManager;
 use crate::web::error::APIError;
-use crate::web::ResponseObjectWithPayload;
+use crate::web::{ResponseObject, ResponseObjectWithPayload};
 use crate::web::user::json_objects::{UserRequest, UserResponse};
 
 // Response-/Request-Objects
@@ -61,9 +62,9 @@ mod json_objects {
 ///
 /// # Arguments
 ///
-/// * `req` - The HttpRequest that was made
 /// * `user_req` - The body of the request parsed to a UserRequest-object
 /// * `appdata` - An [`AppData`]-instance
+/// * `identity` - An Option containing the users identity if known
 ///
 /// # Examples
 ///
@@ -130,21 +131,26 @@ mod json_objects {
 ///     }
 /// ```
 #[post("/user")]
-pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, appdata: Data<AppData>) -> impl Responder {
+pub async fn add_user(user_req: web::Json<UserRequest>, appdata: Data<AppData>, identity: Option<Identity>) -> impl Responder {
     // Check if still logged in
-    if get_user_id_from_request(req).is_ok() { //TODO? necessary to be logged out?
-        return APIError::NoPermissionError.gen_response()
+    if identity.is_some() { //TODO? necessary to be logged out?
+        return Err(APIError::NoPermissionError)
     }
     // Verify access to beta-deploy
     if user_req.beta_key != env::var("BETA_KEY").unwrap() {
-        return APIError::NoPermissionError.gen_response()
+        return Err(APIError::NoPermissionError)
     }
 
-    // Add user
+    // Attempt to add the user
     match appdata.get_manager().add_user(&user_req.username, &user_req.password).await {
-        Ok(user_manager) => HttpResponse::Created().json(ResponseObjectWithPayload::new(UserResponse::from(&user_manager).await)),
-        Err(DBError::InvalidRequestError(_)) => APIError::InvalidCredentialsError(format!("username '{}' already exists", user_req.username)).gen_response(),
-        Err(_) => APIError::QueryError("failed to add user".to_string()).gen_response()
+        Ok(user_manager) => Ok(HttpResponse::Created().json(
+            ResponseObjectWithPayload::new(
+                UserResponse::from(&user_manager).await
+            )
+        )),
+        Err(DBError::InvalidRequestError(_)) => Err(APIError::InvalidCredentialsError(
+            format!("username '{}' already exists", user_req.username))),
+        Err(_) => Err(APIError::QueryError("failed to add user".to_string()))
     }
 }
 
@@ -160,8 +166,7 @@ pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, appdat
 ///
 /// # Arguments
 ///
-/// * `req` - The HttpRequest that was made
-/// * `appdata` - An [`AppData`]-instance
+/// * `user_manager` - A [`UserManager`]-instance of the requesting user
 ///
 /// # Examples
 ///
@@ -188,12 +193,10 @@ pub async fn add_user(req: HttpRequest, user_req: web::Json<UserRequest>, appdat
 ///     }
 /// ```
 #[get("/user")]
-pub async fn get_user(req: HttpRequest, appdata: Data<AppData>) -> impl Responder {
-    match get_user_from_request(req, &appdata.get_manager()).await {
-        Ok(user_manager) => HttpResponse::Ok().json(ResponseObjectWithPayload::new(
-            UserResponse::from(&user_manager).await)),
-        Err(e) => e.gen_response()
-    }
+pub async fn get_user(user_manager: Box<dyn UserManager>) -> impl Responder {
+    HttpResponse::Ok().json(
+        ResponseObjectWithPayload::new(
+            UserResponse::from(&user_manager).await))
 }
 
 /// ENDPOINT: Removes a user from the database and logs them out
@@ -208,8 +211,9 @@ pub async fn get_user(req: HttpRequest, appdata: Data<AppData>) -> impl Responde
 ///
 /// # Arguments
 ///
-/// * `req` - The HttpRequest that was made
 /// * `appdata` - An [`AppData`]-instance
+/// * `user` - An Option containing the users identity if known
+/// * `user_manager` - A [`UserManager`]-instance of the requesting user
 ///
 /// # Examples
 ///
@@ -232,15 +236,15 @@ pub async fn get_user(req: HttpRequest, appdata: Data<AppData>) -> impl Responde
 ///     }
 /// ```
 #[delete("/user")]
-pub async fn remove_user(req: HttpRequest, appdata: Data<AppData>) -> impl Responder { //TODO add security check or something (maybe have a body with the user-information or something, password?)
+pub async fn remove_user(appdata: Data<AppData>, identity: Option<Identity>, user_manager: Box<dyn UserManager>) -> impl Responder { //TODO add security check or something (maybe have a body with the user-information or something, password?)
     let db_manager = appdata.get_manager();
-    match get_user_from_request(req, &db_manager).await {
-        Ok(user_manager) => {
-            match db_manager.remove_user(&user_manager.get_meta_information().id).await {
-                Ok(_) => gen_logout_response(),
-                Err(_) => APIError::QueryError("failed to remove user".to_string()).gen_response()
-            }
+    match db_manager.remove_user(&user_manager.get_meta_information().id).await {
+        Ok(_) => {
+            // Terminate session
+            identity.unwrap().logout();
+            // Return success-response
+            Ok(HttpResponse::Ok().json(ResponseObject::new()))
         },
-        Err(e) => e.gen_response()
+        Err(_) => Err(APIError::QueryError("failed to remove user".to_string()))
     }
 }

@@ -13,6 +13,7 @@
 //!     * `DB_PORT` - The port under which to find the Database
 //!     * `DB_USER` - The user under which writeUp will use the database
 //!     * `DB_PASSWD` - The password of above's user
+//!     * `REDIS_URI` - The address under which to find the Redis-Server
 //!     * `API_PORT` - The port under which to find the REST-API *[default: `8080`]*
 //!     * `PASSWD_SECRET` - The secret used to pepper password-hashes
 //!     * `JWT_SECRET` - The secret used in creating and verifying JWTs *[default: random]*
@@ -44,7 +45,12 @@ use std::path::{MAIN_SEPARATOR, Path};
 use clap::Parser;
 use actix_cors::Cors;
 use actix_files::NamedFile;
+use actix_identity::IdentityMiddleware;
+use actix_session::config::{PersistentSession, SessionLifecycle, TtlExtensionPolicy};
+use actix_session::SessionMiddleware;
+use actix_session::storage::RedisActorSessionStore;
 use actix_web::{App, HttpServer};
+use actix_web::cookie::{Key, SameSite};
 use actix_web::dev::{fn_service, ServiceRequest, ServiceResponse};
 use actix_web::middleware::Logger;
 use actix_web::web::{Data, JsonConfig};
@@ -153,6 +159,7 @@ async fn main() -> std::io::Result<()> {
     let db_user = env::var("DB_USER").expect("Env-Variable 'DB_USER' needs to be set");
     let db_passwd = env::var("DB_PASSWD").expect("Env-Variable 'DB_PASSWD' needs to be set");
 
+
     // Connect to the Database
     info!("Connecting to Database");
     debug!("Database-Address: {}:{}", db_uri, db_port);
@@ -166,26 +173,60 @@ async fn main() -> std::io::Result<()> {
         error!("Failed to establish a connection to the Database. Shutting down");
         return Ok(());
     }
+
+
     // Prepare the connection for use by the web-server
-    let data = Data::new(AppData { db_pool: db_pool.unwrap() });
+    let appdata = Data::new(AppData { db_pool: db_pool.unwrap() });
+
+    let key = Key::generate(); //TODO Key::from(env::var("JWT_SECRET").unwrap().as_bytes())
 
     // Start the web-server
     info!("Starting up webserver on port {}", api_port);
     on_shutdown!(info!("Shutting down writeUp"));
     if args.headless { info!("Skipping integrated webapp"); }
     let webserver = HttpServer::new(move || {
+
+        // Prepare the middleware
+        let cors_middleware = Cors::permissive();
+
+        let logger_middleware = Logger::new("%{REQ_SERVICE}xi: '%{REQ_PATH}xi' -> %s (%b B, %D ms)")
+            .custom_request_replace("REQ_PATH", // Extract the endpoint's path
+                                    |req| req.method().to_string() + " " + req.path())
+            .custom_request_replace("REQ_SERVICE", // Mark the request either as an API-call or a WEB-resource
+                                    |req| if req.path()
+                                        .starts_with(BACKEND_ROOT_ROUTE) { "API" } else { "WEB" }
+                                        .parse().unwrap())
+            .log_target("writeup::actix");
+
+        let redis_uri = env::var("REDIS_URI").unwrap(); //TODO Check if set and switch to local if not
+        let session_store = RedisActorSessionStore::new(redis_uri);
+        let session_middleware = SessionMiddleware::builder(session_store, key.clone())
+            .session_lifecycle(SessionLifecycle::PersistentSession(PersistentSession::default()
+                .session_ttl_extension_policy(TtlExtensionPolicy::OnEveryRequest)))
+            .cookie_secure(!has_dev_flag())
+            .cookie_http_only(true)
+            .cookie_same_site(SameSite::Strict)
+            .cookie_path("/api".to_string())
+            .build();
+        let identity_middleware = IdentityMiddleware::default();
+
+
         // Configure App
         let app_base = App::new()
-            .wrap(Cors::permissive())
-            .wrap(Logger::new("%{REQ_SERVICE}xi: '%{REQ_PATH}xi' -> %s (%b B, %D ms)")
-                .custom_request_replace("REQ_PATH", |req| req.method().to_string() + " " + req.path())
-                .custom_request_replace("REQ_SERVICE", |req| if req.path().starts_with(BACKEND_ROOT_ROUTE) { "API" } else { "WEB" }.parse().unwrap())
-                .log_target("writeup::actix"))
-            .app_data(data.clone())
+            // Add middleware
+            // !Initialisation of middleware from bottom to top!
+            .wrap(identity_middleware)
+            .wrap(session_middleware)
+            .wrap(cors_middleware)
+            .wrap(logger_middleware)
+            // Add appdata
+            .app_data(appdata.clone())
+            // Fix response from failing json-conversion not conforming to overall pattern
             .app_data(JsonConfig::default().error_handler(web::json_error_handler));
 
         // Register backend-service
-        let app_backend = app_base.service(actix_web::web::scope(BACKEND_ROOT_ROUTE).configure(web::handler_config));
+        let app_backend = app_base.service(actix_web::web::scope(BACKEND_ROOT_ROUTE)
+            .configure(web::handler_config));
 
         if !args.headless {
             // Register frontend-service
