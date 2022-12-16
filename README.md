@@ -76,7 +76,7 @@ cp -R build/ ../public/
 cd ..
 ```
 
-2. Build the backend
+2. Build the backend (requires `clang` to be installed)
 
 ```sh
 cargo build --release
@@ -101,6 +101,7 @@ docker build .
 
 ```sh
 docker-compose up -d
+
 # to rebuild run
 docker-compose down
 docker-compose up -d --build
@@ -137,8 +138,8 @@ BETA_KEY: B757B
 # This secret should not be changed after it has been used once.
 PASSWD_SECRET: passwdSecret
 
-# Secret used for the encoding of the JWT
-JWT_SECRET: jwtSecret
+# Secret used for the encoding of the session-id (has to be at least 64bytes)
+SESSION_SECRET: sessionSecretsessionSecretsessionSecretsessionSecretsessionSecrets
 
 # Secret reserved for for future development.
 SHARE_SECRET: shareSecret
