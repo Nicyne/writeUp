@@ -3,7 +3,7 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use crate::storage::Driver;
+use actix_session::storage::SessionStore;
 use crate::storage::error::DBError;
 use crate::storage::error::DBError::NoPermissionError;
 
@@ -25,7 +25,7 @@ pub enum PermissionLevel {
 /// A struct modelling a database's meta-information
 pub struct DBMeta {
     /// The database-driver that is being utilised
-    pub driver: Driver,
+    pub driver_id: String,
     /// The current schema-version
     pub version: String
 }
@@ -187,3 +187,7 @@ pub trait NoteManager: Send + Sync {
         return if self.get_meta_information().permission >= req_perm { Ok(()) } else { Err(NoPermissionError) }
     }
 }
+
+// Session-store
+/// Trait that extends [`SessionStore`] with `Send` and `Sync` to allow for use in multithreaded scenarios
+pub trait SendableSessionStore: SessionStore + Send + Sync {}

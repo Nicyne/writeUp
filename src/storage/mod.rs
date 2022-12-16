@@ -46,13 +46,32 @@
 //! The remaining trait-implementations follow from its definition.
 //!
 //! For a more detailed list of supported actions see [`interface`].
+//!
+//! # SessionStore
+//!
+//! In order for session-information to be stored and organized an individual interface allowing access to the database is required.
+//!
+//! While the trait is mostly independent from the rest of the interface,
+//! it is currently required to offer an implementation per driver.
+//! Various checks and potential errors regarding the act of connecting can and should be skipped
+//! since they will have been ran once already establishing a connection for the [`ManagerPool`].
+//!
+//! The implementation of [`SendableSessionStore`] that will be used depends on the driver being chosen when creating a [`ManagerPool`]
 
+use std::collections::HashMap;
 use std::env;
+use std::sync::Arc;
+use actix_session::storage::{LoadError, SaveError, SessionKey, SessionStore, UpdateError};
+use actix_web::cookie::time::Duration;
+use anyhow::Error;
 use argonautica::{Hasher, Verifier};
 use crate::PASSWD_SECRET_ENV_VAR_KEY;
 use crate::storage::error::DBError;
 use crate::storage::interface::ManagerPool;
 use crate::storage::mongodb::MongoDBPool;
+use crate::storage::mongodb::sessions::MongoDBSessionStore;
+use async_trait::async_trait;
+use interface::SendableSessionStore;
 
 pub mod interface;
 pub mod error;
@@ -61,19 +80,81 @@ mod mongodb;
 /// Chars not serving a use outside of a potential injection-attempt
 const FORBIDDEN_CHARS:[char;6] = ['{', '}', '$', ':', '-', '%']; //TODO? Check for '.' (only used in jwt so far)
 
+
+// Database-access
+
 /// All supported database-driver
 pub enum Driver {
-    MongoDB
+    /// Driver for a MongoDB-server
+    ///
+    /// ```
+    /// let url = "localhost".to_string();
+    /// let port = "27017".to_string();
+    /// let username = "root".to_string();
+    /// let password = "example".to_string();
+    ///
+    /// let driver = Driver::MongoDB((url, port), (username, password));
+    /// ```
+    MongoDB((String, String), (String, String)),
+    //Redis(String)
 }
 
 impl Driver {
-    pub async fn get_pool(&self, uri: (String, String), cred: (String, String)) -> Result<Box<dyn ManagerPool>, DBError> {
+    /// Creates and returns a ManagerPool-implementation for the chosen driver
+    ///
+    /// Fails if a connection to the database could not be established [[`ServerConnectionError`](DBError::ServerConnectionError)] or
+    /// the internal schema differs from the expected [[`MigrationRequiredError`](DBError::MigrationRequiredError)]
+    pub async fn get_pool(&self) -> Result<Box<dyn ManagerPool>, DBError> {
         match self {
-            Driver::MongoDB => MongoDBPool::new(uri, cred).await
+            Driver::MongoDB(uri, cred) => MongoDBPool::new(uri.clone(), cred.clone()).await,
+            //Driver::Redis(uri) => panic!("Hey, redis no good")
+        }
+    }
+
+    /// Returns a [`SessionStore`]-implementation for the driver at hand
+    ///
+    /// Doesn't check for fail-states and should therefore only be used after successful verification using the [`get_pool`](Driver::get_pool)-method
+    pub async fn get_session_store(&self) -> Box<dyn SendableSessionStore> {
+        match self {
+            Driver::MongoDB(uri, cred) => Box::new(MongoDBSessionStore::new(uri.clone(), cred.clone()).await),
+            //Driver::Redis(uri) => Box::new(RedisActorSessionStore::new(uri))
         }
     }
 }
 
+
+// Session-utility
+
+/// Wrapper-object anonymizing the exact [`SendableSessionStore`]-implementation to the compiler
+pub struct SessionStoreWrapper {
+    pub store: Arc<Box<dyn SendableSessionStore>>
+}
+
+#[async_trait(?Send)]
+impl SessionStore for SessionStoreWrapper {
+    async fn load(&self, session_key: &SessionKey) -> Result<Option<HashMap<String, String>>, LoadError> {
+        self.store.load(session_key).await
+    }
+
+    async fn save(&self, session_state: HashMap<String, String>, ttl: &Duration) -> Result<SessionKey, SaveError> {
+        self.store.save(session_state, ttl).await
+    }
+
+    async fn update(&self, session_key: SessionKey, session_state: HashMap<String, String>, ttl: &Duration) -> Result<SessionKey, UpdateError> {
+        self.store.update(session_key, session_state, ttl).await
+    }
+
+    async fn update_ttl(&self, session_key: &SessionKey, ttl: &Duration) -> Result<(), Error> {
+        self.store.update_ttl(session_key, ttl).await
+    }
+
+    async fn delete(&self, session_key: &SessionKey) -> Result<(), Error> {
+        self.store.delete(session_key).await
+    }
+}
+
+
+// General-purpose utility-functions
 
 /// Tests a string for potential injection-attempts
 ///

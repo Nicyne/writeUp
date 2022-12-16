@@ -14,11 +14,12 @@
 //!     * `DB_USER` - The user under which writeUp will use the database
 //!     * `DB_PASSWD` - The password of above's user
 //!     * `REDIS_URI` - The address under which to find the Redis-Server
-//!     * `API_PORT` - The port under which to find the REST-API *[default: `8080`]*
+//!     * `API_PORT` - The port under which to find the REST-API *[__default:__ `8080`]*
 //!     * `PASSWD_SECRET` - The secret used to pepper password-hashes
-//!     * `JWT_SECRET` - The secret used in creating and verifying JWTs *[default: random]*
-//!     * `SHARE_SECRET` - The secret used in creating and verifying invitation-codes *[default: random]*
-//!     * `BETA_KEY` - The key to indicate beta-membership *[default: random]*
+//!     * `SESSION_SECRET` - The secret used in creating and verifying Session-IDs
+//!                         *[__default:__ random, __min:__ 64 bytes]*
+//!     * `SHARE_SECRET` - The secret used in creating and verifying invitation-codes *[__default:__ random]*
+//!     * `BETA_KEY` - The key to indicate beta-membership *[__default:__ random]*
 //!
 //! 3. Start up the server by executing `writeUp` and wait for
 //!     ```text
@@ -33,7 +34,7 @@
 //!
 //!     If the request gets rejected, check your console for error messages
 //!
-//! For a comprehensive list of all Endpoints and how to use them please refer to [[`web`](crate::web)]
+//! For a comprehensive list of all Endpoints and how to use them please refer to [[`web`]]
 
 #![allow(rustdoc::private_intra_doc_links)]
 #![allow(non_snake_case)]
@@ -42,33 +43,34 @@ mod web;
 
 use std::env;
 use std::path::{MAIN_SEPARATOR, Path};
+use std::sync::Arc;
 use clap::Parser;
 use actix_cors::Cors;
 use actix_files::NamedFile;
 use actix_identity::IdentityMiddleware;
 use actix_session::config::{PersistentSession, SessionLifecycle, TtlExtensionPolicy};
 use actix_session::SessionMiddleware;
-use actix_session::storage::RedisActorSessionStore;
 use actix_web::{App, HttpServer};
 use actix_web::cookie::{Key, SameSite};
 use actix_web::dev::{fn_service, ServiceRequest, ServiceResponse};
 use actix_web::middleware::Logger;
 use actix_web::web::{Data, JsonConfig};
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use simple_on_shutdown::on_shutdown;
+use storage::SessionStoreWrapper;
 use crate::storage::Driver;
 use crate::storage::interface::{DBManager, ManagerPool};
 
 /// The name of the environment-variable containing the password-secret
 pub const PASSWD_SECRET_ENV_VAR_KEY: &str = "PASSWD_SECRET";
 /// The name of the environment-variable containing the jwt-secret
-pub const JWT_SECRET_ENV_VAR_KEY: &str = "JWT_SECRET";
+pub const SESSION_SECRET_ENV_VAR_KEY: &str = "SESSION_SECRET";
 /// The name of the environment-variable containing the share-secret
 pub const SHARE_SECRET_ENV_VAR_KEY: &str = "SHARE_SECRET";
 /// The default length at which a given secret-string gets generated
-const SECRET_SIZE: usize = 16;
+const SECRET_SIZE: usize = 16; //TODO Rise to 64
 
 /// Root of all backend-requests
 const BACKEND_ROOT_ROUTE: &str = "/api";
@@ -127,13 +129,8 @@ async fn main() -> std::io::Result<()> {
     info!("Checking for environment-variables");
     env::var(PASSWD_SECRET_ENV_VAR_KEY).expect("Env-Variable 'PASSWD_SECRET' needs to be set");
     debug!("Passwd-Secret: {}", env::var(PASSWD_SECRET_ENV_VAR_KEY).unwrap());
+
     // Set random secrets for encryption if not predefined
-    if env::var(JWT_SECRET_ENV_VAR_KEY).is_err() {
-        let new_secret: String = rand::thread_rng().sample_iter(&Alphanumeric)
-            .take(SECRET_SIZE).map(char::from).collect();
-        env::set_var(JWT_SECRET_ENV_VAR_KEY, new_secret);
-    }
-    debug!("JWT-Secret: {}", env::var(JWT_SECRET_ENV_VAR_KEY).unwrap());
     if env::var(SHARE_SECRET_ENV_VAR_KEY).is_err() {
         let new_secret: String = rand::thread_rng().sample_iter(&Alphanumeric)
             .take(SECRET_SIZE).map(char::from).collect();
@@ -159,12 +156,28 @@ async fn main() -> std::io::Result<()> {
     let db_user = env::var("DB_USER").expect("Env-Variable 'DB_USER' needs to be set");
     let db_passwd = env::var("DB_PASSWD").expect("Env-Variable 'DB_PASSWD' needs to be set");
 
+    // Create a key for the session-middleware
+    let session_key = if env::var(SESSION_SECRET_ENV_VAR_KEY).is_err() {
+        debug!("No Session-Secret provided: Generating a new one");
+        Key::generate()
+    } else {
+        let env_key = env::var(SESSION_SECRET_ENV_VAR_KEY).unwrap();
+        if env_key.len() < 64 {
+            warn!("Provided Session-Secret does not comply with 64B min-size requirement: Generating a new one");
+            Key::generate()
+        } else {
+            Key::from(env_key.as_bytes())
+        }
+    };
+    //debug!("Session-Secret: {}", std::str::from_utf8(session_key.master()).unwrap()); // not utf8 if generated with Key::generate()
+
 
     // Connect to the Database
     info!("Connecting to Database");
     debug!("Database-Address: {}:{}", db_uri, db_port);
     debug!("Database-User: {} ({})", db_user, db_passwd);
-    let db_pool = Driver::MongoDB.get_pool((db_uri, db_port), (db_user, db_passwd)).await;
+    let db_driver = Driver::MongoDB((db_uri.clone(), db_port.clone()), (db_user.clone(), db_passwd.clone()));
+    let db_pool = db_driver.get_pool().await;
     if db_pool.is_err() {
         match db_pool { //TODO migrate if necessary
             Ok(_) => {}, //Can't happen due to earlier check
@@ -175,10 +188,10 @@ async fn main() -> std::io::Result<()> {
     }
 
 
-    // Prepare the connection for use by the web-server
+    // Prepare the database for use by the web-server
     let appdata = Data::new(AppData { db_pool: db_pool.unwrap() });
+    let session_store = Arc::new(db_driver.get_session_store().await);
 
-    let key = Key::generate(); //TODO Key::from(env::var("JWT_SECRET").unwrap().as_bytes())
 
     // Start the web-server
     info!("Starting up webserver on port {}", api_port);
@@ -198,9 +211,8 @@ async fn main() -> std::io::Result<()> {
                                         .parse().unwrap())
             .log_target("writeup::actix");
 
-        let redis_uri = env::var("REDIS_URI").unwrap(); //TODO Check if set and switch to local if not
-        let session_store = RedisActorSessionStore::new(redis_uri);
-        let session_middleware = SessionMiddleware::builder(session_store, key.clone())
+        let session_store_wrapper = SessionStoreWrapper { store: session_store.clone() };
+        let session_middleware = SessionMiddleware::builder(session_store_wrapper, session_key.clone())
             .session_lifecycle(SessionLifecycle::PersistentSession(PersistentSession::default()
                 .session_ttl_extension_policy(TtlExtensionPolicy::OnEveryRequest)))
             .cookie_secure(!has_dev_flag())

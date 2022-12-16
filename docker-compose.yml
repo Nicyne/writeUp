@@ -34,5 +34,5 @@ services:
       DB_PASSWD: example
       BETA_KEY: B757B
       PASSWD_SECRET: randomcharacters
-      #JWT_SECRET: secret
+      #SESSION_SECRET: secretsecretsecretsecretsecretsecretsecretsecretsecretsecretsecr
       #SHARE_SECRET: otherSecret

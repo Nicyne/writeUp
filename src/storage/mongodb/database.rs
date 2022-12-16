@@ -4,9 +4,10 @@ use async_trait::async_trait;
 use chrono::Utc;
 use mongodb::bson::doc;
 use mongodb::Database;
-use crate::storage::{Driver, gen_hash, is_safe, verify};
+use crate::storage::{gen_hash, is_safe, verify};
 use crate::storage::error::DBError;
 use crate::storage::interface::{DBManager, DBMeta, UserManager};
+use crate::storage::mongodb::DRIVER_ID;
 use crate::storage::mongodb::schema::{Credential, CREDENTIALS, USER, User};
 use crate::storage::mongodb::users::MongoDBUserManager;
 
@@ -20,7 +21,7 @@ impl MongoDBDatabaseManager {
     pub fn new(database: Database, version: String) -> MongoDBDatabaseManager {
         MongoDBDatabaseManager {
             meta: DBMeta {
-                driver: Driver::MongoDB,
+                driver_id: DRIVER_ID.to_string(),
                 version
             },
             database}

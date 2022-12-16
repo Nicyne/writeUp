@@ -187,7 +187,7 @@ async fn signal_health() -> impl Responder {
 ///             "application": "writeUp",
 ///             "version": "0.4.5",
 ///             "db": {
-///                 "type": "mongo",
+///                 "type": "mongodb",
 ///                 "version": "1.0"
 ///             },
 ///             "pages": {
@@ -200,12 +200,14 @@ async fn signal_health() -> impl Responder {
 /// ```
 #[get("/system")]
 async fn return_system_status(appdata: Data<AppData>) -> impl Responder {
+    let db_manager = appdata.get_manager();
+    let db_meta = db_manager.get_meta_information();
     return HttpResponse::Ok().json(ResponseObjectWithPayload::new(doc! {
         "application": env!("CARGO_PKG_NAME").to_string(),
         "version": env!("CARGO_PKG_VERSION").to_string(),
         "db": {
-            "type": "mongo", //TODO Read from env-var
-            "version": appdata.get_manager().get_meta_information().version.clone()
+            "type": db_meta.driver_id.clone(),
+            "version": db_meta.version.clone()
         },
         "pages": {
             "imprint": env::var("IMPRINT_URL").unwrap_or("".to_string()),
