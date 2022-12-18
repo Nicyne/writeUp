@@ -1,45 +1,34 @@
-import { Route, Routes, Navigate } from 'react-router-dom';
-import { Editor, Landing, About, Login, Logout, NoMatch, SignUp } from 'pages';
-import React, { PropsWithChildren } from 'react';
-import { DefaultLayout, EditorLayout } from 'components';
-import { EditorContextProvider } from 'context';
-import { useAuth } from 'hooks';
+import { useState } from 'react';
+import reactLogo from 'assets/react.svg';
+import 'styles/App.css';
 
-function withDefaultLayout(element: React.ReactNode) {
-  return <DefaultLayout>{element}</DefaultLayout>;
-}
+function App() {
+  const [count, setCount] = useState(0);
 
-export function ProtectedRoute(props: PropsWithChildren) {
-  const { user, loading } = useAuth();
-
-  if (!user && !loading && typeof window !== 'undefined') {
-    return <Navigate to={'/login'} />;
-  }
-
-  return <>{props.children}</>;
-}
-
-export function App() {
   return (
-    <Routes>
-      <Route path="/" element={withDefaultLayout(<Landing />)} />
-      <Route path="/about" element={withDefaultLayout(<About />)} />
-      <Route path="/login" element={withDefaultLayout(<Login />)} />
-      <Route path="/logout" element={withDefaultLayout(<Logout />)} />
-      <Route path="/signup" element={withDefaultLayout(<SignUp />)} />
-      <Route
-        path="/app"
-        element={
-          <ProtectedRoute>
-            <EditorContextProvider>
-              <EditorLayout>
-                <Editor />
-              </EditorLayout>
-            </EditorContextProvider>
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={withDefaultLayout(<NoMatch />)} />
-    </Routes>
+    <div className="App">
+      <div>
+        <a href="https://vitejs.dev" target="_blank">
+          <img src="/vite.svg" className="logo" alt="Vite logo" />
+        </a>
+        <a href="https://reactjs.org" target="_blank">
+          <img src={reactLogo} className="logo react" alt="React logo" />
+        </a>
+      </div>
+      <h1>Vite + React</h1>
+      <div className="card">
+        <button onClick={() => setCount((count) => count + 1)}>
+          count is {count}
+        </button>
+        <p>
+          Edit <code>src/App.tsx</code> and save to test HMR
+        </p>
+      </div>
+      <p className="read-the-docs">
+        Click on the Vite and React logos to learn more
+      </p>
+    </div>
   );
 }
+
+export default App;

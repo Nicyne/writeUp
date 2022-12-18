@@ -1,5 +1,5 @@
 # -------------------- Frontend | Dependency Stage --------------------
-FROM node:17-alpine AS deps
+FROM node:18-alpine AS deps
 RUN apk add --no-cache libc6-compat
 
 # prepare the project
@@ -10,7 +10,7 @@ COPY ./client/package.json ./client/yarn.lock ./
 RUN yarn install --frozen-lockfile
 
 # -------------------- Frontend | Build Stage --------------------
-FROM node:17-alpine AS frontend-builder
+FROM node:18-alpine AS frontend-builder
 
 WORKDIR /app
 
