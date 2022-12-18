@@ -1,5 +1,5 @@
-import { useAuth } from 'hooks';
 import { Link } from 'react-router-dom';
+import { useAuth } from 'hooks';
 
 export function PageHeader() {
   const { user } = useAuth();

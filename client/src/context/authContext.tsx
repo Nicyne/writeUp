@@ -52,7 +52,32 @@ export function AuthContextProvider(props: PropsWithChildren) {
   const [user, setUser] = useState<User>();
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  console.error(user);
+
+  const getUser = useCallback(async () => {
+    setIsLoading(true);
+    return await fetch('/api/auth', {
+      credentials: 'include',
+    })
+      .then((res) => res.json())
+      .then((res) => {
+        console.debug(res);
+
+        if (!res.success) {
+          return;
+        }
+
+        setUser(res.content);
+      })
+      .catch((err) => {
+        console.error(err);
+        return;
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
+
   const logout = useCallback(async () => {
+    console.warn(user);
     if (!user) return;
 
     return await fetch('/api/auth', {
@@ -69,7 +94,7 @@ export function AuthContextProvider(props: PropsWithChildren) {
       .catch((err) => {
         console.error(err);
       });
-  }, []);
+  }, [user]);
 
   const login = useCallback(
     async (username: string, password: string): Promise<IResponse> => {
@@ -95,7 +120,7 @@ export function AuthContextProvider(props: PropsWithChildren) {
           return { success: false, message: err };
         });
     },
-    []
+    [getUser]
   );
 
   const signUp = useCallback(
@@ -138,34 +163,12 @@ export function AuthContextProvider(props: PropsWithChildren) {
           };
         });
     },
-    []
+    [user]
   );
-
-  const getUser = useCallback(async () => {
-    setIsLoading(true);
-    return await fetch('/api/auth', {
-      credentials: 'include',
-    })
-      .then((res) => res.json())
-      .then((res) => {
-        console.debug(res);
-
-        if (!res.success) {
-          return;
-        }
-
-        setUser(res.content);
-      })
-      .catch((err) => {
-        console.error(err);
-        return;
-      })
-      .finally(() => setIsLoading(false));
-  }, []);
 
   useEffect(() => {
     getUser();
-  }, []);
+  }, [getUser]);
 
   return (
     <AuthContext.Provider
