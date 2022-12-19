@@ -52,8 +52,10 @@ export function AuthContextProvider(props: PropsWithChildren) {
   const [user, setUser] = useState<User>();
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  console.error(user);
-
+  /**
+   * Fetches the current user and sets the state, if no valid token is
+   * saved in a cookie the user is set to undefined.
+   */
   const getUser = useCallback(async () => {
     setIsLoading(true);
     return await fetch('/api/auth', {
@@ -76,6 +78,10 @@ export function AuthContextProvider(props: PropsWithChildren) {
       .finally(() => setIsLoading(false));
   }, []);
 
+  /**
+   * Logs the user out, sends a DELETE request to the api
+   * and sets the user variable to undefined.
+   */
   const logout = useCallback(async () => {
     console.warn(user);
     if (!user) return;
@@ -96,6 +102,14 @@ export function AuthContextProvider(props: PropsWithChildren) {
       });
   }, [user]);
 
+  /**
+   * Attempts to authenticate with the given username / password.
+   * Sets the user variable if the login was successful.
+   *
+   * @param {string} username
+   * @param {string} password
+   * @returns Returns an Object holding a success-boolean and a message
+   */
   const login = useCallback(
     async (username: string, password: string): Promise<IResponse> => {
       return await fetch('/api/auth', {
@@ -123,6 +137,14 @@ export function AuthContextProvider(props: PropsWithChildren) {
     [getUser]
   );
 
+  /**
+   * Creates a new user with the given username / password combination.
+   *
+   * @param {string} username Desired Username
+   * @param {string} password Password to be used
+   * @param {string} betaKey This parameter is only required during the beta phase and will be removed later.
+   * @returns Returns an Object holding a success-boolean and a message
+   */
   const signUp = useCallback(
     async (username: string, password: string, betaKey: string) => {
       if (user)
