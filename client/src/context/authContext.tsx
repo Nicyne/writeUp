@@ -83,7 +83,6 @@ export function AuthContextProvider(props: PropsWithChildren) {
    * and sets the user variable to undefined.
    */
   const logout = useCallback(async () => {
-    console.warn(user);
     if (!user) return;
 
     return await fetch('/api/auth', {
