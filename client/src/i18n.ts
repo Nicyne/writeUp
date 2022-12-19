@@ -25,7 +25,7 @@ i18n
     backend: {
       // This settings is important for lazy loading the translation files
       // for all available options read the backend's repository readme file
-      loadPath: './src/locales/{{lng}}/{{ns}}.json',
+      loadPath: './locales/{{lng}}/{{ns}}.json',
     },
     supportedLngs: ['de', 'en'],
     fallbackLng: fallbackLocale,
