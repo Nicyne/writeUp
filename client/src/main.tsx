@@ -3,9 +3,9 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthContextProvider } from 'context';
 
-import { Router } from 'components';
-
 import 'i18n';
+
+import { Router } from './router';
 
 import 'styles/index.scss';
 
