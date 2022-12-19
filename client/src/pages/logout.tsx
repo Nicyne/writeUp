@@ -10,7 +10,7 @@ export function Logout() {
 
   useEffect(() => {
     let redirectTimer: NodeJS.Timeout;
-    if (!user) {
+    if (!user && !loggedOut) {
       console.error('no user');
       navigate('/');
       return;
@@ -23,7 +23,7 @@ export function Logout() {
     }, 5000);
 
     return () => clearTimeout(redirectTimer);
-  }, [logout, navigate, user]);
+  }, [logout, navigate, user, loggedOut]);
 
   useEffect(() => {
     let countDownTimer: NodeJS.Timeout;
