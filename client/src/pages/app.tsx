@@ -4,7 +4,7 @@ import reactLogo from 'assets/react.svg';
 
 import { LanguageSelector } from 'components';
 
-import 'styles/App.css';
+import 'styles/App.scss';
 
 export function App() {
   const [count, setCount] = useState(0);
