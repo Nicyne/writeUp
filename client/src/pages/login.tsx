@@ -1,10 +1,12 @@
 import { FormEvent, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from 'hooks';
 
 export function Login() {
   const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const navigate = useNavigate();
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -14,6 +16,7 @@ export function Login() {
       console.log(result);
       return;
     }
+    navigate('/app');
   };
 
   return (

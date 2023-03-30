@@ -1,4 +1,5 @@
 import { FormEvent, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from 'hooks';
 
 export function Signup() {
@@ -6,12 +7,17 @@ export function Signup() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [betaKey, setBetaKey] = useState('');
+  const navigate = useNavigate();
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
 
     const result = await signUp(username, password, betaKey);
-    if (!result.success) console.log(result);
+    if (!result.success) {
+      console.log(result);
+      return;
+    }
+    navigate('/login');
   };
 
   return (
