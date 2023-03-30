@@ -11,7 +11,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint . --ext .ts,.tsx"
   },
   "dependencies": {
     "i18next": "22.0.3",

@@ -12,7 +12,7 @@ export function LanguageSelector() {
 
   return (
     <select
-      name="language"
+      name={t('language')}
       id="language"
       defaultValue={lang}
       onChange={(e) => changeLocale(e.target.value)}
